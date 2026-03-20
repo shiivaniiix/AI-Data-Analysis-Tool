@@ -1,48 +1,36 @@
 import logging
-import smtplib
 import os
-from email.message import EmailMessage
+import smtplib
+from email.mime.text import MIMEText
+
+from fastapi import HTTPException, status
 
 logger = logging.getLogger(__name__)
 
 
 def send_otp_email(*, email: str, otp_code: str) -> None:
-    subject = "Your DataChat AI OTP"
-    try:
-        otp_expire_minutes = int(os.getenv("OTP_EXPIRE_MINUTES", "10"))
-    except ValueError:
-        otp_expire_minutes = 10
-    body = (
-        f"Your OTP is: {otp_code}. "
-        f"It expires in {otp_expire_minutes} minutes."
-    )
-
     email_sender = os.getenv("EMAIL_SENDER", "")
     email_password = os.getenv("EMAIL_PASSWORD", "")
 
     if not email_sender or not email_password:
-        logger.warning(
-            "Email sender credentials are missing. "
-            "Set EMAIL_SENDER and EMAIL_PASSWORD to enable SMTP delivery."
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Email service is not configured. Please set EMAIL_SENDER and EMAIL_PASSWORD.",
         )
-        logger.info("Development fallback OTP for %s is %s", email, otp_code)
-        return
 
-    message = EmailMessage()
+    message = MIMEText(f"Your OTP is: {otp_code}. It expires in 10 minutes.")
+    message["Subject"] = "Your DataChat AI OTP"
     message["From"] = email_sender
     message["To"] = email
-    message["Subject"] = subject
-    message.set_content(body)
 
     try:
-        with smtplib.SMTP("smtp.gmail.com", 587, timeout=20) as smtp:
-            smtp.ehlo()
-            smtp.starttls()
-            smtp.ehlo()
+        with smtplib.SMTP_SSL("smtp.gmail.com", 465, timeout=20) as smtp:
             smtp.login(email_sender, email_password)
             smtp.send_message(message)
         logger.info("OTP email sent successfully to %s", email)
-    except Exception:
+    except Exception as e:
         logger.exception("Failed to send OTP email to %s", email)
-        # Dev-safe fallback: keep app flow alive and print OTP.
-        logger.info("Development fallback OTP for %s is %s", email, otp_code)
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=f"Failed to send OTP email: {e}",
+        )

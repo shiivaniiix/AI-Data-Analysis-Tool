@@ -8,7 +8,6 @@ import { ApiError, apiRequest } from "@/lib/api";
 type SignupResponse = {
   message: string;
   verification_required: boolean;
-  dev_otp?: string | null;
 };
 
 export default function SignupPage() {
@@ -17,7 +16,6 @@ export default function SignupPage() {
   const [password, setPassword] = useState("");
   const [otp, setOtp] = useState("");
   const [otpStep, setOtpStep] = useState(false);
-  const [devOtp, setDevOtp] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
@@ -29,18 +27,13 @@ export default function SignupPage() {
     setLoading(true);
 
     try {
-      const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/$/, "");
-      console.log("API URL:", apiBase);
-      console.log("Signup endpoint path:", "/auth/signup");
-      const data = await apiRequest<SignupResponse>("/auth/signup", {
+      await apiRequest<SignupResponse>("/auth/signup", {
         method: "POST",
         body: { email, username, password },
       });
       setOtpStep(true);
-      setDevOtp(data.dev_otp ?? null);
-      setSuccessMessage("Account created. Enter the OTP (check backend logs in dev mode).");
+      setSuccessMessage("Account created. Enter the OTP sent to your email.");
     } catch (err) {
-      console.error("Signup error:", err);
       setError(
         err instanceof ApiError
           ? err.message
@@ -141,15 +134,7 @@ export default function SignupPage() {
                 placeholder="6-digit OTP"
               />
             </label>
-            <p className="text-xs text-zinc-500">
-              In development, OTP is printed in backend terminal.
-            </p>
-            {devOtp ? (
-              <p className="rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 text-xs text-zinc-400">
-                Development mode: your OTP is{" "}
-                <span className="font-semibold text-zinc-200">{devOtp}</span>
-              </p>
-            ) : null}
+            <p className="text-xs text-zinc-500">Enter the OTP sent to your email</p>
             <button
               type="submit"
               disabled={loading}

@@ -18,7 +18,6 @@ from app.services.auth_service import (
     verify_user_otp,
 )
 from app.services.token_service import get_current_user
-from app.utils.config import settings
 from app.utils.db import get_db
 
 router = APIRouter(prefix="/auth", tags=["auth"])
@@ -26,15 +25,12 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 
 @router.post("/signup", response_model=SignupResponse, status_code=status.HTTP_201_CREATED)
 def signup(payload: SignupRequest, db: Session = Depends(get_db)) -> SignupResponse:
-    _, otp_code = create_user_with_otp(
+    create_user_with_otp(
         db, email=payload.email, username=payload.username, password=payload.password
     )
-    response = SignupResponse(
+    return SignupResponse(
         message="Signup successful. Please verify your email with OTP."
     )
-    if settings.debug_show_otp:
-        response.dev_otp = otp_code
-    return response
 
 
 @router.post("/verify-otp", response_model=UserResponse)
