@@ -28,7 +28,10 @@ FastAPI backend for DataChat AI (Codezista).
 
 4. Start server:
    ```bash
-   uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+   # Windows note: avoid --reload in long-running dev/prod-like runs to prevent
+   # subprocess/socket exhaustion (WinError 10055). Use a single uvicorn instance.
+   uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 1 --graceful-timeout 10
+   
    ```
 
 ## Health check

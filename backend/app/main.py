@@ -13,6 +13,9 @@ from app.routes.dev import router as dev_router
 from app.routes.health import router as health_router
 from app.routes.chats import router as chats_router
 from app.utils.db import engine
+import logging
+
+logger = logging.getLogger(__name__)
 
 app = FastAPI(
     title="DataChat AI API",
@@ -51,3 +54,12 @@ app.include_router(dev_router, prefix="/api")
 @app.on_event("startup")
 def on_startup() -> None:
     Base.metadata.create_all(bind=engine)
+
+
+@app.on_event("shutdown")
+def on_shutdown() -> None:
+    # Helps avoid lingering DB sockets/resources between restarts.
+    try:
+        engine.dispose()
+    except Exception:
+        logger.exception("Failed to dispose SQLAlchemy engine on shutdown.")
