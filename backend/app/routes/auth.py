@@ -5,6 +5,8 @@ from app.models.auth import (
     AuthTokenResponse,
     DeleteAccountRequest,
     LoginRequest,
+    MessageResponse,
+    ResendOtpRequest,
     SignupRequest,
     SignupResponse,
     UserResponse,
@@ -15,6 +17,7 @@ from app.services.auth_service import (
     create_user_with_otp,
     delete_user_account,
     login_user,
+    resend_user_otp,
     verify_user_otp,
 )
 from app.services.token_service import get_current_user
@@ -37,6 +40,12 @@ def signup(payload: SignupRequest, db: Session = Depends(get_db)) -> SignupRespo
 def verify_otp(payload: VerifyOtpRequest, db: Session = Depends(get_db)) -> UserResponse:
     user = verify_user_otp(db, email=payload.email, otp_code=payload.otp)
     return UserResponse.model_validate(user)
+
+
+@router.post("/resend-otp", response_model=MessageResponse)
+def resend_otp(payload: ResendOtpRequest, db: Session = Depends(get_db)) -> MessageResponse:
+    resend_user_otp(db, email=payload.email)
+    return MessageResponse(message="OTP resent successfully.")
 
 
 @router.post("/login", response_model=AuthTokenResponse)

@@ -1,13 +1,17 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import { ApiError, apiRequest } from "@/lib/api";
 
 type SignupResponse = {
   message: string;
   verification_required: boolean;
+};
+
+type MessageResponse = {
+  message: string;
 };
 
 export default function SignupPage() {
@@ -17,8 +21,16 @@ export default function SignupPage() {
   const [otp, setOtp] = useState("");
   const [otpStep, setOtpStep] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [resendLoading, setResendLoading] = useState(false);
+  const [resendCooldown, setResendCooldown] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (resendCooldown <= 0) return;
+    const timer = window.setTimeout(() => setResendCooldown((prev) => prev - 1), 1000);
+    return () => window.clearTimeout(timer);
+  }, [resendCooldown]);
 
   const handleSignup = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -61,6 +73,25 @@ export default function SignupPage() {
       setError(err instanceof ApiError ? err.message : "Unable to verify OTP.");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleResendOtp = async () => {
+    if (!email || resendCooldown > 0) return;
+    setError(null);
+    setSuccessMessage(null);
+    setResendLoading(true);
+    try {
+      const data = await apiRequest<MessageResponse>("/auth/resend-otp", {
+        method: "POST",
+        body: { email },
+      });
+      setSuccessMessage(data.message || "OTP resent successfully");
+      setResendCooldown(30);
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Unable to resend OTP.");
+    } finally {
+      setResendLoading(false);
     }
   };
 
@@ -135,6 +166,18 @@ export default function SignupPage() {
               />
             </label>
             <p className="text-xs text-zinc-500">Enter the OTP sent to your email</p>
+            <button
+              type="button"
+              onClick={handleResendOtp}
+              disabled={resendLoading || resendCooldown > 0 || loading}
+              className="w-full rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-2 text-sm font-medium text-zinc-100 transition hover:bg-zinc-900 disabled:cursor-not-allowed disabled:opacity-70"
+            >
+              {resendLoading
+                ? "Resending..."
+                : resendCooldown > 0
+                  ? `Resend OTP in ${resendCooldown}s`
+                  : "Resend OTP"}
+            </button>
             <button
               type="submit"
               disabled={loading}

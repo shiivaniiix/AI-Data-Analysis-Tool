@@ -18,6 +18,14 @@ class VerifyOtpRequest(BaseModel):
     otp: str = Field(min_length=6, max_length=6, pattern=r"^[0-9]{6}$")
 
 
+class ResendOtpRequest(BaseModel):
+    email: EmailStr
+
+
+class MessageResponse(BaseModel):
+    message: str
+
+
 class LoginRequest(BaseModel):
     identifier: str = Field(min_length=3, max_length=255)
     password: str = Field(min_length=8, max_length=128)

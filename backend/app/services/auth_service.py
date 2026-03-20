@@ -21,6 +21,24 @@ def _find_user_by_username(db: Session, username: str) -> User | None:
     return db.scalar(select(User).where(User.username == username.lower()))
 
 
+def _issue_new_otp_for_user(db: Session, *, user: User) -> str:
+    db.query(UserOtp).filter(
+        UserOtp.user_id == user.id,
+        UserOtp.consumed_at.is_(None),
+    ).delete(synchronize_session=False)
+
+    otp_code = generate_otp()
+    otp_entry = UserOtp(
+        user_id=user.id,
+        otp_hash=hash_otp(otp_code),
+        expires_at=datetime.now(timezone.utc) + timedelta(minutes=settings.otp_expire_minutes),
+    )
+    db.add(otp_entry)
+    db.commit()
+    send_otp_email(email=user.email, otp_code=otp_code)
+    return otp_code
+
+
 def create_user_with_otp(
     db: Session, *, email: str, username: str, password: str
 ) -> tuple[User, str]:
@@ -46,18 +64,8 @@ def create_user_with_otp(
     )
     db.add(user)
     db.flush()
-
-    otp_code = generate_otp()
-    otp_entry = UserOtp(
-        user_id=user.id,
-        otp_hash=hash_otp(otp_code),
-        expires_at=datetime.now(timezone.utc)
-        + timedelta(minutes=settings.otp_expire_minutes),
-    )
-    db.add(otp_entry)
-    db.commit()
+    otp_code = _issue_new_otp_for_user(db, user=user)
     db.refresh(user)
-    send_otp_email(email=user.email, otp_code=otp_code)
 
     return user, otp_code
 
@@ -150,3 +158,15 @@ def delete_user_account(db: Session, *, user_id: str, password: str) -> None:
 
     db.delete(user)
     db.commit()
+
+
+def resend_user_otp(db: Session, *, email: str) -> None:
+    user = _find_user_by_email(db, email.lower().strip())
+    if not user:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found.")
+    if user.is_verified:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Email is already verified.",
+        )
+    _issue_new_otp_for_user(db, user=user)
