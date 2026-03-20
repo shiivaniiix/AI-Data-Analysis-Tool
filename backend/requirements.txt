@@ -17,3 +17,4 @@ xlrd
 matplotlib
 reportlab
 python-docx
+resend
