@@ -20,7 +20,7 @@ def send_otp_email(*, email: str, otp_code: str) -> None:
     try:
         resend.Emails.send(
             {
-                "from": "onboarding@resend.dev",
+                "from": "noreply@datachatai.in",
                 "to": [email],
                 "subject": "Your DataChat AI OTP",
                 "html": f"<strong>Your OTP is: {otp_code}</strong>",
