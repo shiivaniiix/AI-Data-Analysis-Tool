@@ -319,7 +319,78 @@ def schema_as_text(*, columns: list[dict[str, Any]]) -> str:
     return json.dumps(columns, ensure_ascii=False)
 
 
+def _is_identifier_column(*, col_name: str) -> bool:
+    name = (col_name or "").strip().lower()
+    if not name:
+        return False
+
+    # Common identifier-like naming patterns.
+    if name in {"id", "uuid", "guid"}:
+        return True
+    if name.endswith("_id"):
+        return True
+    if "rollno" in name or "roll_no" in name:
+        return True
+    # e.g. "roll no", "rollNo"
+    if name.startswith("roll") and "no" in name:
+        return True
+    if name.endswith("userid") or "user_id" in name:
+        return True
+    return False
+
+
+def _choose_primary_categorical(categorical_cols: list[str]) -> str | None:
+    if not categorical_cols:
+        return None
+    keywords = [
+        "name",
+        "label",
+        "category",
+        "categories",
+        "type",
+        "class",
+        "department",
+        "role",
+        "title",
+    ]
+    for k in keywords:
+        for col in categorical_cols:
+            if k in col.lower():
+                return col
+    return categorical_cols[0]
+
+
+def _choose_primary_numeric(numeric_cols: list[str]) -> str | None:
+    if not numeric_cols:
+        return None
+    keywords = [
+        "marks",
+        "score",
+        "revenue",
+        "amount",
+        "sales",
+        "profit",
+        "quantity",
+        "value",
+        "price",
+        "total",
+        "rating",
+        "grade",
+        "salary",
+    ]
+    for k in keywords:
+        for col in numeric_cols:
+            if k in col.lower():
+                return col
+    return numeric_cols[0]
+
+
 def _categorize_columns(schema: list[dict[str, Any]]) -> tuple[list[str], list[str], list[str]]:
+    """
+    Column classification using both:
+    - DuckDB types (numeric vs string vs datetime)
+    - Name heuristics to exclude identifier-like numeric columns (e.g. RollNo)
+    """
     numeric: list[str] = []
     categorical: list[str] = []
     time_cols: list[str] = []
@@ -327,6 +398,10 @@ def _categorize_columns(schema: list[dict[str, Any]]) -> tuple[list[str], list[s
     for c in schema:
         name = str(c.get("name"))
         typ = str(c.get("type") or "").lower()
+
+        if _is_identifier_column(col_name=name):
+            continue
+
         if any(t in typ for t in ["int", "bigint", "double", "float", "decimal", "numeric", "real"]):
             numeric.append(name)
         elif any(t in typ for t in ["date", "timestamp", "datetime"]):
@@ -449,19 +524,25 @@ def _resolve_chart_columns(*, inputs: dict[str, Any], chart_kind: str) -> tuple[
     numeric_cols: list[str] = inputs["numeric_cols"]
     time_cols: list[str] = inputs["time_cols"]
 
+    primary_cat = _choose_primary_categorical(categorical_cols)
+    primary_num = _choose_primary_numeric(numeric_cols)
+
     if chart_kind == "bar":
-        x_col = categorical_cols[0] if categorical_cols else (numeric_cols[0] if numeric_cols else None)
-        y_col = numeric_cols[0] if numeric_cols else None
-        return x_col, y_col
+        # Bar: categorical vs numeric.
+        if primary_cat and primary_num:
+            return primary_cat, primary_num
+        return (categorical_cols[0] if categorical_cols else None), (numeric_cols[0] if numeric_cols else None)
+
     if chart_kind == "pie":
-        x_col = categorical_cols[0] if categorical_cols else (numeric_cols[0] if numeric_cols else None)
-        return x_col, None
+        # Pie: distribution based on numeric measure per categorical bucket.
+        if primary_cat and primary_num:
+            return primary_cat, primary_num
+        return (categorical_cols[0] if categorical_cols else None), (numeric_cols[0] if numeric_cols else None)
+
     if chart_kind == "line":
-        # Prefer time series; fall back to numeric index series.
-        if time_cols and numeric_cols:
-            return time_cols[0], numeric_cols[0]
-        if numeric_cols:
-            return None, numeric_cols[0]
+        # Only create trends if a time-based column exists.
+        if time_cols and primary_num:
+            return time_cols[0], primary_num
         return None, None
 
     return None, None
@@ -528,6 +609,22 @@ def get_chart_data(
         if chart_kind == "pie":
             if x_column is None:
                 raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="No x column available.")
+            if y_column:
+                # Pie shows distribution of the *numeric measure* across categories.
+                sql = f"""
+                  SELECT CAST({ _quote_ident(x_column) } AS VARCHAR) AS name,
+                         SUM(TRY_CAST({ _quote_ident(y_column) } AS DOUBLE)) AS value
+                  FROM {TABLE_NAME}
+                  {where_clause}
+                  GROUP BY 1
+                  HAVING value IS NOT NULL
+                  ORDER BY value DESC
+                  LIMIT {int(limit)}
+                """
+                rows = con.execute(sql, params).fetchall()
+                return [{"name": str(r[0]), "value": float(r[1]) if r[1] is not None else 0.0} for r in rows]
+
+            # Fallback: pure category frequency distribution.
             sql = f"""
               SELECT CAST({ _quote_ident(x_column) } AS VARCHAR) AS name,
                      COUNT(*) AS value
@@ -588,85 +685,154 @@ def get_suggested_charts_and_summary(*, user_id: str, chat_id: str) -> dict[str,
     filter_values: list[str] | None = None
 
     charts: list[dict[str, Any]] = []
-    # Choose chart columns using dataset heuristics.
+    # Choose chart columns using dataset semantics (exclude identifier-like columns).
     bar_x, bar_y = _resolve_chart_columns(inputs=schema_inputs, chart_kind="bar")
-    pie_x, _pie_y = _resolve_chart_columns(inputs=schema_inputs, chart_kind="pie")
+    pie_x, pie_y = _resolve_chart_columns(inputs=schema_inputs, chart_kind="pie")
     line_x, line_y = _resolve_chart_columns(inputs=schema_inputs, chart_kind="line")
 
-    # Bar
-    bar_data = get_chart_data(
-        user_id=user_id,
-        chat_id=chat_id,
-        chart_kind="bar",
-        x_column=bar_x,
-        y_column=bar_y,
-        filter_column=filter_column,
-        filter_values=filter_values,
-        limit=10,
-    )
-    charts.append(
-        {
-            "chart_kind": "bar",
-            "title": f"Top {bar_x or 'categories'} by {bar_y or 'count'}",
-            "x_column": bar_x,
-            "y_column": bar_y,
-            "x_label": bar_x,
-            "y_label": bar_y or "count",
-            "data": bar_data,
-        }
-    )
+    has_time_series = line_x is not None and line_y is not None
 
-    # Line
-    line_data = get_chart_data(
-        user_id=user_id,
-        chat_id=chat_id,
-        chart_kind="line",
-        x_column=line_x,
-        y_column=line_y,
-        filter_column=filter_column,
-        filter_values=filter_values,
-        limit=10,
-    )
-    charts.append(
-        {
-            "chart_kind": "line",
-            "title": f"Trend by {line_x or 'sequence'}",
-            "x_column": line_x,
-            "y_column": line_y,
-            "x_label": line_x or "index",
-            "y_label": line_y,
-            "data": line_data,
-        }
-    )
+    # Store semantic “primary” columns for deterministic insights.
+    chosen_categorical = bar_x
+    chosen_numeric = bar_y
+    summary["chosen_categorical_column"] = chosen_categorical
+    summary["chosen_numeric_column"] = chosen_numeric
+    summary["has_time_series"] = has_time_series
 
-    # Pie
-    pie_data = get_chart_data(
-        user_id=user_id,
-        chat_id=chat_id,
-        chart_kind="pie",
-        x_column=pie_x,
-        y_column=None,
-        filter_column=filter_column,
-        filter_values=filter_values,
-        limit=6,
-    )
-    charts.append(
-        {
-            "chart_kind": "pie",
-            "title": f"Share of {pie_x or 'categories'}",
-            "x_column": pie_x,
-            "y_column": None,
-            "x_label": pie_x,
-            "y_label": "count",
-            "data": pie_data,
-        }
-    )
+    # Compute top/bottom/avg/ranking for chosen categorical+numeric.
+    if chosen_categorical and chosen_numeric:
+        db_path = _duckdb_path(user_id=user_id, chat_id=chat_id)
+        con = duckdb.connect(str(db_path), read_only=True)
+        try:
+            avg_val = con.execute(
+                f"""
+                SELECT AVG(TRY_CAST({_quote_ident(chosen_numeric)} AS DOUBLE))
+                FROM {TABLE_NAME}
+                WHERE TRY_CAST({_quote_ident(chosen_numeric)} AS DOUBLE) IS NOT NULL
+                """
+            ).fetchone()[0]
+            summary["avg_value"] = avg_val
 
-    return {
-        "summary": summary,
-        "slicer": slicer,
-        "suggested_charts": charts,
-    }
+            top_row = con.execute(
+                f"""
+                SELECT
+                  CAST({_quote_ident(chosen_categorical)} AS VARCHAR) AS label,
+                  TRY_CAST({_quote_ident(chosen_numeric)} AS DOUBLE) AS value
+                FROM {TABLE_NAME}
+                WHERE TRY_CAST({_quote_ident(chosen_numeric)} AS DOUBLE) IS NOT NULL
+                ORDER BY value DESC
+                LIMIT 1
+                """
+            ).fetchone()
+            bottom_row = con.execute(
+                f"""
+                SELECT
+                  CAST({_quote_ident(chosen_categorical)} AS VARCHAR) AS label,
+                  TRY_CAST({_quote_ident(chosen_numeric)} AS DOUBLE) AS value
+                FROM {TABLE_NAME}
+                WHERE TRY_CAST({_quote_ident(chosen_numeric)} AS DOUBLE) IS NOT NULL
+                ORDER BY value ASC
+                LIMIT 1
+                """
+            ).fetchone()
+
+            if top_row:
+                summary["top_label"] = str(top_row[0])
+                summary["top_value"] = top_row[1]
+            if bottom_row:
+                summary["bottom_label"] = str(bottom_row[0])
+                summary["bottom_value"] = bottom_row[1]
+
+            ranking_rows = con.execute(
+                f"""
+                SELECT
+                  CAST({_quote_ident(chosen_categorical)} AS VARCHAR) AS label,
+                  TRY_CAST({_quote_ident(chosen_numeric)} AS DOUBLE) AS value
+                FROM {TABLE_NAME}
+                WHERE TRY_CAST({_quote_ident(chosen_numeric)} AS DOUBLE) IS NOT NULL
+                ORDER BY value DESC
+                LIMIT 5
+                """
+            ).fetchall()
+            summary["ranking"] = [
+                {"label": str(r[0]), "value": r[1]} for r in ranking_rows if r and r[0] is not None
+            ]
+        finally:
+            con.close()
+
+    # Bar (categorical vs numeric)
+    if bar_x and bar_y:
+        bar_data = get_chart_data(
+            user_id=user_id,
+            chat_id=chat_id,
+            chart_kind="bar",
+            x_column=bar_x,
+            y_column=bar_y,
+            filter_column=filter_column,
+            filter_values=filter_values,
+            limit=10,
+        )
+        charts.append(
+            {
+                "chart_kind": "bar",
+                "title": f"Top {bar_x} by {bar_y}",
+                "x_column": bar_x,
+                "y_column": bar_y,
+                "x_label": bar_x,
+                "y_label": bar_y,
+                "data": bar_data,
+            }
+        )
+
+    # Line (trend only if a time-based column exists)
+    if has_time_series:
+        line_data = get_chart_data(
+            user_id=user_id,
+            chat_id=chat_id,
+            chart_kind="line",
+            x_column=line_x,
+            y_column=line_y,
+            filter_column=filter_column,
+            filter_values=filter_values,
+            limit=10,
+        )
+        charts.append(
+            {
+                "chart_kind": "line",
+                "title": f"Trend by {line_x}",
+                "x_column": line_x,
+                "y_column": line_y,
+                "x_label": line_x,
+                "y_label": line_y,
+                "data": line_data,
+            }
+        )
+
+    # Pie (distribution of categories based on numeric measure)
+    if pie_x:
+        pie_data = get_chart_data(
+            user_id=user_id,
+            chat_id=chat_id,
+            chart_kind="pie",
+            x_column=pie_x,
+            y_column=pie_y,
+            filter_column=filter_column,
+            filter_values=filter_values,
+            limit=6,
+        )
+        charts.append(
+            {
+                "chart_kind": "pie",
+                "title": f"Share of {pie_x}",
+                "x_column": pie_x,
+                "y_column": pie_y,
+                "x_label": pie_x,
+                "y_label": pie_y or "value",
+                "data": pie_data,
+            }
+        )
+
+    return {"summary": summary, "slicer": slicer, "suggested_charts": charts}
 
 
 def export_filtered_data_csv(
