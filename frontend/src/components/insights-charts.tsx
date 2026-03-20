@@ -344,7 +344,7 @@ export function InsightsCharts({
               {barChart ? (
                 <motion.div
                   ref={barRef}
-                  className="rounded-xl border border-zinc-700 bg-zinc-900 p-4 shadow-sm transition-all hover:shadow-xl hover:border-blue-500/50"
+                  className="w-full rounded-xl border border-zinc-700 bg-zinc-900 p-4 shadow-sm transition-all hover:shadow-xl hover:border-blue-500/50"
                   initial={{ opacity: 0, y: 20 }}
                   whileInView={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.5 }}
@@ -362,7 +362,7 @@ export function InsightsCharts({
                       PNG
                     </button>
                   </div>
-                  <div className="mt-2 h-[240px]">
+                  <div className="mt-2 min-h-[240px] h-[240px] w-full">
                     <ResponsiveContainer width="100%" height="100%">
                       <BarChart data={barChart.data} margin={{ top: 10, right: 10, left: -5, bottom: 10 }}>
                         <defs>
@@ -395,7 +395,7 @@ export function InsightsCharts({
               {lineChart ? (
                 <motion.div
                   ref={lineRef}
-                  className="rounded-xl border border-zinc-700 bg-zinc-900 p-4 shadow-sm transition-all hover:shadow-xl hover:border-blue-500/50"
+                  className="w-full rounded-xl border border-zinc-700 bg-zinc-900 p-4 shadow-sm transition-all hover:shadow-xl hover:border-blue-500/50"
                   initial={{ opacity: 0, y: 20 }}
                   whileInView={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.5 }}
@@ -413,7 +413,7 @@ export function InsightsCharts({
                       PNG
                     </button>
                   </div>
-                  <div className="mt-2 h-[240px]">
+                  <div className="mt-2 min-h-[240px] h-[240px] w-full">
                     <ResponsiveContainer width="100%" height="100%">
                       <LineChart data={lineChart.data} margin={{ top: 10, right: 10, left: -5, bottom: 10 }}>
                         <defs>
@@ -454,7 +454,7 @@ export function InsightsCharts({
               {pieChart ? (
                 <motion.div
                   ref={pieRef}
-                  className="rounded-xl border border-zinc-700 bg-zinc-900 p-4 shadow-sm transition-all hover:shadow-xl hover:border-blue-500/50"
+                  className="w-full rounded-xl border border-zinc-700 bg-zinc-900 p-4 shadow-sm transition-all hover:shadow-xl hover:border-blue-500/50"
                   initial={{ opacity: 0, y: 20 }}
                   whileInView={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.5 }}
@@ -472,7 +472,7 @@ export function InsightsCharts({
                       PNG
                     </button>
                   </div>
-                  <div className="mt-2 h-[240px]">
+                  <div className="mt-2 min-h-[240px] h-[240px] w-full">
                     <ResponsiveContainer width="100%" height="100%">
                       <PieChart>
                         <Tooltip
