@@ -56,6 +56,7 @@ function DashboardPageContent() {
   const [shareLoading, setShareLoading] = useState(false);
   const [shareLink, setShareLink] = useState<string | null>(null);
   const [shareError, setShareError] = useState<string | null>(null);
+  const [showShareLinkContainer, setShowShareLinkContainer] = useState(true);
 
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
 
@@ -284,16 +285,16 @@ function DashboardPageContent() {
   };
 
   return (
-    <main className="flex h-screen bg-zinc-950 text-zinc-100">
-      <aside className="flex w-[280px] flex-col border-r border-zinc-800 bg-zinc-950">
+    <main className="flex h-screen bg-gradient-to-br from-zinc-950 via-zinc-950 to-purple-950 text-zinc-100">
+      <aside className="flex w-[280px] flex-col border-r border-zinc-800 bg-gradient-to-b from-zinc-950 to-zinc-900">
         <div className="p-4">
           <div className="flex items-center justify-between gap-3">
-            <h2 className="text-sm font-semibold tracking-wide text-zinc-200">Chats</h2>
+            <h2 className="text-sm font-semibold tracking-wide text-white">Chats</h2>
             <button
               type="button"
               onClick={() => void createNewChat()}
               disabled={loadingChats}
-              className="rounded-lg border border-zinc-700 bg-zinc-900 px-2 py-1 text-xs font-semibold text-zinc-100 transition hover:border-zinc-500 disabled:opacity-70"
+              className="rounded-lg bg-gradient-to-r from-blue-500 to-purple-500 px-2 py-1 text-xs font-semibold text-white shadow-sm transition hover:shadow-md disabled:opacity-70"
             >
               New
             </button>
@@ -312,7 +313,9 @@ function DashboardPageContent() {
                     <li
                       key={c.id}
                       className={`group cursor-pointer rounded-xl border px-3 py-2 text-xs transition ${
-                        isActive ? "border-zinc-600 bg-zinc-800" : "border-zinc-800 bg-zinc-900/40 hover:border-zinc-700"
+                        isActive
+                          ? "border-zinc-700 bg-zinc-800 border-l-2 border-blue-500"
+                          : "border-zinc-800 bg-zinc-900/40 hover:border-zinc-700 hover:bg-zinc-900/60"
                       }`}
                       onClick={() => setSelectedChatId(c.id)}
                       title={c.file_name ?? "New chat"}
@@ -352,15 +355,15 @@ function DashboardPageContent() {
       </aside>
 
       <section className="flex flex-1 flex-col">
-        <header className="flex items-center justify-between border-b border-zinc-800 px-6 py-4">
+        <header className="flex items-center justify-between border-b border-zinc-800 px-6 py-6">
           <div>
-            <h1 className="text-lg font-semibold">DataChat AI</h1>
+            <h1 className="text-lg font-semibold text-white">DataChat AI</h1>
             <p className="text-xs text-zinc-400">
               Upload a file, then chat. Switch chats from the sidebar.
             </p>
           </div>
           {selectedChat?.file_name ? (
-            <div className="max-w-[320px] truncate rounded-lg border border-zinc-800 bg-zinc-900/50 px-3 py-2 text-xs text-zinc-200">
+            <div className="max-w-[320px] truncate rounded-lg border border-zinc-700 bg-gradient-to-br from-zinc-900 to-zinc-800/30 px-3 py-2 text-xs text-zinc-200">
               {selectedChat.file_name}
             </div>
           ) : null}
@@ -372,7 +375,7 @@ function DashboardPageContent() {
                 onChange={(e) =>
                   setSharePermission(e.target.value as "view" | "edit")
                 }
-                className="rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 text-xs text-zinc-100 outline-none focus:border-zinc-500"
+                className="rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 text-xs text-zinc-100 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500"
                 disabled={shareLoading}
                 aria-label="Share permission"
               >
@@ -386,6 +389,7 @@ function DashboardPageContent() {
                   setShareError(null);
                   setShareLoading(true);
                   setShareLink(null);
+                  setShowShareLinkContainer(false);
                   try {
                     const apiBase =
                       process.env.NEXT_PUBLIC_API_BASE_URL?.replace(
@@ -414,6 +418,7 @@ function DashboardPageContent() {
                       data.share_token,
                     )}`;
                     setShareLink(link);
+                    setShowShareLinkContainer(true);
                   } catch (err) {
                     setShareError(err instanceof Error ? err.message : "Unable to share chat.");
                   } finally {
@@ -421,7 +426,7 @@ function DashboardPageContent() {
                   }
                 }}
                 disabled={shareLoading}
-                className="rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 text-xs font-semibold text-zinc-100 transition hover:border-zinc-500 disabled:opacity-70"
+                className="rounded-lg bg-gradient-to-r from-blue-500 to-purple-500 px-3 py-2 text-xs font-semibold text-white shadow-sm transition hover:shadow-md disabled:opacity-70"
               >
                 {shareLoading ? "Creating…" : "Share"}
               </button>
@@ -435,16 +440,24 @@ function DashboardPageContent() {
           </div>
         ) : null}
 
-        {shareLink ? (
-          <div className="mx-6 mt-3 flex flex-col gap-2 rounded-xl border border-zinc-800 bg-zinc-900/40 px-4 py-3">
-            <p className="text-xs font-semibold uppercase tracking-[0.14em] text-zinc-400">
+        {shareLink && showShareLinkContainer ? (
+          <div className="mx-6 mt-3 relative flex flex-col gap-2 rounded-xl border border-zinc-700 bg-gradient-to-br from-zinc-900 to-zinc-800/30 px-4 py-3 shadow-sm transition hover:shadow-lg hover:scale-[1.01]">
+            <button
+              type="button"
+              onClick={() => setShowShareLinkContainer(false)}
+              aria-label="Close share link"
+              className="absolute right-2 top-2 inline-flex h-7 w-7 items-center justify-center rounded-full border border-zinc-700 bg-zinc-950/40 text-zinc-200 transition hover:border-zinc-500 hover:bg-zinc-900"
+            >
+              ✕
+            </button>
+            <p className="pr-8 text-xs font-semibold uppercase tracking-[0.14em] text-zinc-300">
               Share link
             </p>
             <div className="flex flex-wrap items-center gap-2">
               <input
                 readOnly
                 value={shareLink}
-                className="flex-1 min-w-[260px] rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 text-xs text-zinc-100"
+                className="flex-1 min-w-[260px] rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 text-xs text-zinc-100 focus:ring-2 focus:ring-blue-500"
               />
               <button
                 type="button"
@@ -455,7 +468,7 @@ function DashboardPageContent() {
                     // ignore clipboard errors
                   }
                 }}
-                className="rounded-lg border border-zinc-700 px-3 py-2 text-xs font-semibold text-zinc-100 transition hover:border-zinc-500"
+                className="rounded-lg bg-gradient-to-r from-blue-500 to-purple-500 px-3 py-2 text-xs font-semibold text-white shadow-sm transition hover:shadow-md"
               >
                 Copy
               </button>
@@ -469,14 +482,14 @@ function DashboardPageContent() {
           </div>
         ) : null}
 
-        <div className="flex-1 overflow-auto px-6 py-6">
+        <div className="flex-1 overflow-auto px-6 py-8">
           {!selectedChat ? (
             <div className="rounded-2xl border border-zinc-800 bg-zinc-900/50 p-8 text-sm text-zinc-300">
               {loadingChats ? "Loading chats…" : "Select a chat to begin."}
             </div>
           ) : !selectedChat.file_url ? (
-            <div className="mx-auto w-full max-w-2xl rounded-2xl border border-zinc-800 bg-zinc-900/50 p-8">
-              <h2 className="text-base font-semibold">Upload File</h2>
+            <div className="mx-auto w-full max-w-2xl rounded-2xl border border-zinc-700 bg-gradient-to-br from-zinc-900 to-zinc-800/30 p-8 shadow-sm hover:shadow-lg hover:scale-[1.01] transition">
+              <h2 className="text-lg font-semibold text-white">Upload File</h2>
               <p className="mt-2 text-sm text-zinc-400">
                 Upload a CSV or Excel file to start. We’ll use it to generate insights and answer questions.
               </p>
@@ -488,7 +501,7 @@ function DashboardPageContent() {
                     type="file"
                     accept=".csv,.xls,.xlsx"
                     onChange={(e) => setUploadFile(e.target.files?.[0] ?? null)}
-                    className="w-full cursor-pointer rounded-xl border border-zinc-700 bg-zinc-950 p-3 text-sm text-zinc-100 outline-none focus:border-zinc-500"
+                    className="w-full cursor-pointer rounded-xl border border-zinc-700 bg-zinc-950 p-3 text-sm text-zinc-100 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500"
                     disabled={!selectedChat.can_edit}
                   />
                   {uploadFile ? (
@@ -500,7 +513,7 @@ function DashboardPageContent() {
                   type="button"
                   onClick={() => void handleUpload()}
                   disabled={uploading || !selectedChat.can_edit}
-                  className="w-full rounded-xl bg-white px-4 py-3 text-sm font-semibold text-zinc-900 transition hover:bg-zinc-200 disabled:opacity-70"
+                  className="w-full rounded-xl bg-gradient-to-r from-blue-500 to-purple-500 px-4 py-3 text-sm font-semibold text-white shadow-sm transition hover:shadow-md disabled:opacity-70"
                 >
                   {uploading ? "Uploading…" : "Upload & Start Chat"}
                 </button>
@@ -520,7 +533,7 @@ function DashboardPageContent() {
                   datasetVersion={selectedChat.file_url}
                 />
               ) : null}
-              <div className="flex-1 overflow-auto rounded-2xl border border-zinc-800 bg-zinc-900/50 px-4 py-4">
+              <div className="flex-1 overflow-auto rounded-2xl border border-zinc-700 bg-gradient-to-br from-zinc-900 to-zinc-800/20 px-4 py-4">
                 {loadingMessages ? (
                   <p className="py-6 text-sm text-zinc-400">Loading messages…</p>
                 ) : messages.length === 0 ? (
@@ -539,8 +552,8 @@ function DashboardPageContent() {
                           <div
                             className={`max-w-[85%] whitespace-pre-wrap rounded-2xl border px-4 py-3 text-sm ${
                               isUser
-                                ? "border-zinc-700 bg-zinc-800 text-zinc-50"
-                                : "border-zinc-800 bg-zinc-950 text-zinc-100"
+                                ? "border-blue-500/40 bg-blue-900/20 text-zinc-50"
+                                : "border-zinc-700 bg-zinc-950/60 text-zinc-100"
                             }`}
                           >
                             {m.content}
@@ -560,7 +573,7 @@ function DashboardPageContent() {
                   placeholder="Ask about your data..."
                   rows={1}
                   disabled={!selectedChat.can_edit}
-                  className="min-h-[46px] flex-1 resize-none rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-3 text-sm text-zinc-100 outline-none focus:border-zinc-500"
+                  className="min-h-[46px] flex-1 resize-none rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-3 text-sm text-zinc-100 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500"
                   onKeyDown={(e) => {
                     if (e.key === "Enter" && !e.shiftKey) {
                       e.preventDefault();
@@ -572,7 +585,7 @@ function DashboardPageContent() {
                   type="button"
                   disabled={sending || !selectedChat.can_edit}
                   onClick={() => void sendMessage()}
-                  className="rounded-xl bg-white px-4 py-3 text-sm font-semibold text-zinc-900 transition hover:bg-zinc-200 disabled:opacity-70"
+                  className="rounded-xl bg-gradient-to-r from-blue-500 to-purple-500 px-4 py-3 text-sm font-semibold text-white shadow-sm transition hover:shadow-md disabled:opacity-70"
                 >
                   {sending ? "Sending…" : "Send"}
                 </button>
