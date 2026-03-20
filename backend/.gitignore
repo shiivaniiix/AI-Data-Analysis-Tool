@@ -1,0 +1,12 @@
+__pycache__/
+*.pyc
+.venv/
+.env
+.duckdb/
+# Local SQLite dev database
+datachat.db
+*.db
+
+# Temporary local upload fallback for dev
+.local_uploads/
+.env.local

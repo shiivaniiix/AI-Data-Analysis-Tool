@@ -1,0 +1,3 @@
+# Install when using PostgreSQL (e.g. Supabase DATABASE_URL):
+#   pip install -r requirements-postgres.txt
+psycopg[binary]
