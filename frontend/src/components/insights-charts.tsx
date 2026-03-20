@@ -228,7 +228,7 @@ export function InsightsCharts({
 
   return (
     <motion.div
-      className="rounded-2xl border border-zinc-700 bg-gradient-to-br from-zinc-900 to-zinc-800/30 p-4 shadow-sm transition hover:shadow-lg"
+      className="rounded-2xl border border-zinc-700 bg-linear-to-br from-zinc-900 to-zinc-800/30 p-4 shadow-sm transition hover:shadow-lg"
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5 }}
@@ -251,7 +251,7 @@ export function InsightsCharts({
             type="button"
             onClick={() => void downloadExportCsv()}
             disabled={exportLoading !== null}
-            className="rounded-lg bg-gradient-to-r from-blue-500 to-purple-500 px-3 py-2 text-xs font-semibold text-white shadow-sm transition hover:shadow-md hover:scale-[1.03] duration-200"
+            className="rounded-lg bg-linear-to-r from-blue-500 to-purple-500 px-3 py-2 text-xs font-semibold text-white shadow-sm transition hover:shadow-md hover:scale-[1.03] duration-200"
           >
             {exportLoading === "csv" ? "Exporting CSV..." : "Download as CSV"}
           </button>
@@ -259,7 +259,7 @@ export function InsightsCharts({
             type="button"
             onClick={() => void downloadExportPdf()}
             disabled={exportLoading !== null}
-            className="rounded-lg bg-gradient-to-r from-blue-500 to-purple-500 px-3 py-2 text-xs font-semibold text-white shadow-sm transition hover:shadow-md hover:scale-[1.03] duration-200"
+            className="rounded-lg bg-linear-to-r from-blue-500 to-purple-500 px-3 py-2 text-xs font-semibold text-white shadow-sm transition hover:shadow-md hover:scale-[1.03] duration-200"
           >
             {exportLoading === "pdf" ? "Generating PDF..." : "Export this as PDF"}
           </button>
@@ -267,7 +267,7 @@ export function InsightsCharts({
             type="button"
             onClick={() => void downloadExportDocx()}
             disabled={exportLoading !== null}
-            className="rounded-lg bg-gradient-to-r from-blue-500 to-purple-500 px-3 py-2 text-xs font-semibold text-white shadow-sm transition hover:shadow-md hover:scale-[1.03] duration-200"
+            className="rounded-lg bg-linear-to-r from-blue-500 to-purple-500 px-3 py-2 text-xs font-semibold text-white shadow-sm transition hover:shadow-md hover:scale-[1.03] duration-200"
           >
             {exportLoading === "docx" ? "Generating DOC..." : "Generate DOC report"}
           </button>
@@ -281,7 +281,7 @@ export function InsightsCharts({
       ) : (
         <>
           {filterColumn ? (
-            <div className="mt-4 rounded-xl border border-zinc-700 bg-gradient-to-br from-zinc-900 to-zinc-800/30 p-3">
+            <div className="mt-4 rounded-xl border border-zinc-700 bg-linear-to-br from-zinc-900 to-zinc-800/30 p-3">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
                   <p className="text-xs font-semibold uppercase tracking-[0.14em] text-zinc-400">
@@ -357,7 +357,7 @@ export function InsightsCharts({
                       onClick={() =>
                         void downloadChartAsPng(barRef.current, `chart_bar_${chatId}.png`)
                       }
-                      className="rounded-lg bg-gradient-to-r from-blue-500 to-purple-500 px-2 py-1 text-[11px] font-semibold text-white shadow-sm transition hover:shadow-md hover:scale-[1.03] duration-200"
+                      className="rounded-lg bg-linear-to-r from-blue-500 to-purple-500 px-2 py-1 text-[11px] font-semibold text-white shadow-sm transition hover:shadow-md hover:scale-[1.03] duration-200"
                     >
                       PNG
                     </button>
@@ -408,7 +408,7 @@ export function InsightsCharts({
                       onClick={() =>
                         void downloadChartAsPng(lineRef.current, `chart_line_${chatId}.png`)
                       }
-                      className="rounded-lg bg-gradient-to-r from-blue-500 to-purple-500 px-2 py-1 text-[11px] font-semibold text-white shadow-sm transition hover:shadow-md hover:scale-[1.03] duration-200"
+                      className="rounded-lg bg-linear-to-r from-blue-500 to-purple-500 px-2 py-1 text-[11px] font-semibold text-white shadow-sm transition hover:shadow-md hover:scale-[1.03] duration-200"
                     >
                       PNG
                     </button>
@@ -467,7 +467,7 @@ export function InsightsCharts({
                       onClick={() =>
                         void downloadChartAsPng(pieRef.current, `chart_pie_${chatId}.png`)
                       }
-                      className="rounded-lg bg-gradient-to-r from-blue-500 to-purple-500 px-2 py-1 text-[11px] font-semibold text-white shadow-sm transition hover:shadow-md hover:scale-[1.03] duration-200"
+                      className="rounded-lg bg-linear-to-r from-blue-500 to-purple-500 px-2 py-1 text-[11px] font-semibold text-white shadow-sm transition hover:shadow-md hover:scale-[1.03] duration-200"
                     >
                       PNG
                     </button>

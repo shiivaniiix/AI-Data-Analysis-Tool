@@ -59,6 +59,26 @@ function DashboardPageContent() {
   const [shareError, setShareError] = useState<string | null>(null);
   const [showShareLinkContainer, setShowShareLinkContainer] = useState(true);
 
+  // UI-only rename support (no backend/persistence yet).
+  const [titleOverrides, setTitleOverrides] = useState<Record<string, string>>({});
+  const [editingChatId, setEditingChatId] = useState<string | null>(null);
+  const [editingTitle, setEditingTitle] = useState("");
+
+  const cancelRename = () => {
+    setEditingChatId(null);
+    setEditingTitle("");
+  };
+
+  const commitRename = (chatId: string) => {
+    const trimmed = editingTitle.trim();
+    if (!trimmed) {
+      cancelRename();
+      return;
+    }
+    setTitleOverrides((prev) => ({ ...prev, [chatId]: trimmed }));
+    cancelRename();
+  };
+
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
@@ -286,8 +306,8 @@ function DashboardPageContent() {
   };
 
   return (
-    <main className="flex h-screen bg-gradient-to-br from-zinc-950 via-zinc-950 to-purple-950 text-zinc-100">
-      <aside className="flex w-[280px] flex-col border-r border-zinc-800 bg-gradient-to-b from-zinc-950 to-zinc-900">
+    <main className="flex h-screen bg-linear-to-br from-zinc-950 via-zinc-950 to-purple-950 text-zinc-100">
+      <aside className="flex w-[280px] flex-col border-r border-zinc-800 bg-linear-to-b from-zinc-950 to-zinc-900">
         <div className="p-4">
           <div className="flex items-center justify-between gap-3">
             <h2 className="text-sm font-semibold tracking-wide text-white">Chats</h2>
@@ -295,7 +315,7 @@ function DashboardPageContent() {
               type="button"
               onClick={() => void createNewChat()}
               disabled={loadingChats}
-              className="rounded-lg bg-gradient-to-r from-blue-500 to-purple-500 px-2 py-1 text-xs font-semibold text-white shadow-sm transition hover:shadow-md hover:scale-[1.03] duration-200 disabled:opacity-70"
+              className="rounded-lg bg-linear-to-r from-blue-500 to-purple-500 px-2 py-1 text-xs font-semibold text-white shadow-sm transition hover:shadow-md hover:scale-[1.03] duration-200 disabled:opacity-70"
             >
               New
             </button>
@@ -315,7 +335,7 @@ function DashboardPageContent() {
                       key={c.id}
                       className={`group cursor-pointer rounded-xl border px-3 py-2 text-xs transition ${
                         isActive
-                          ? "border-zinc-700 bg-zinc-800 border-l-2 border-blue-500"
+                          ? "border-zinc-700 bg-zinc-800 border-l-2 border-l-blue-500"
                           : "border-zinc-800 bg-zinc-900/40 hover:border-zinc-700 hover:bg-zinc-900/60 hover:shadow-md"
                       }`}
                       onClick={() => setSelectedChatId(c.id)}
@@ -323,9 +343,60 @@ function DashboardPageContent() {
                     >
                       <div className="flex items-start justify-between gap-2">
                         <div className="min-w-0">
-                          <p className="truncate font-medium text-zinc-100">
-                            {c.file_name ?? "New chat"}
-                          </p>
+              {editingChatId === c.id ? (
+                <input
+                  autoFocus
+                  value={editingTitle}
+                  onChange={(e) => setEditingTitle(e.target.value)}
+                  onClick={(e) => e.stopPropagation()}
+                  onBlur={() => cancelRename()}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      commitRename(c.id);
+                    }
+                    if (e.key === "Escape") {
+                      e.preventDefault();
+                      cancelRename();
+                    }
+                  }}
+                  className="w-full min-w-0 truncate rounded-lg border border-zinc-700 bg-zinc-950 px-2 py-1 text-[11px] text-zinc-100 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500 transition-all duration-200"
+                  aria-label="Rename chat"
+                />
+              ) : (
+                <div className="flex items-start gap-2">
+                  <button
+                    type="button"
+                    disabled={!c.can_edit}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (!c.can_edit) return;
+                      setEditingChatId(c.id);
+                      setEditingTitle(titleOverrides[c.id] ?? c.file_name ?? "New chat");
+                    }}
+                    className="min-w-0 truncate font-medium text-zinc-100 hover:text-white disabled:opacity-60"
+                    title={c.file_name ?? "New chat"}
+                  >
+                    {titleOverrides[c.id] ?? c.file_name ?? "New chat"}
+                  </button>
+
+                  {c.can_edit ? (
+                    <button
+                      type="button"
+                      aria-label="Edit title"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setEditingChatId(c.id);
+                        setEditingTitle(titleOverrides[c.id] ?? c.file_name ?? "New chat");
+                      }}
+                      className="rounded-md p-1 text-[12px] text-zinc-400 transition hover:text-zinc-100 hover:bg-zinc-900/60"
+                      title="Rename"
+                    >
+                      ✏️
+                    </button>
+                  ) : null}
+                </div>
+              )}
                           <p className="mt-1 text-[11px] text-zinc-400">
                             {(c.created_at ?? "").slice(0, 10)}
                           </p>
@@ -363,9 +434,52 @@ function DashboardPageContent() {
               Upload a file, then chat. Switch chats from the sidebar.
             </p>
           </div>
-          {selectedChat?.file_name ? (
-            <div className="max-w-[320px] truncate rounded-lg border border-zinc-700 bg-gradient-to-br from-zinc-900 to-zinc-800/30 px-3 py-2 text-xs text-zinc-200">
-              {selectedChat.file_name}
+          {selectedChat ? (
+            <div className="max-w-[320px] truncate rounded-lg border border-zinc-700 bg-linear-to-br from-zinc-900 to-zinc-800/30 px-3 py-2 text-xs text-zinc-200">
+              {editingChatId === selectedChat.id ? (
+                <input
+                  autoFocus
+                  value={editingTitle}
+                  onChange={(e) => setEditingTitle(e.target.value)}
+                  onBlur={() => cancelRename()}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      commitRename(selectedChat.id);
+                    }
+                    if (e.key === "Escape") {
+                      e.preventDefault();
+                      cancelRename();
+                    }
+                  }}
+                  className="w-full rounded-lg border border-zinc-700 bg-zinc-950 px-2 py-1 text-xs text-zinc-100 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500 transition-all duration-200"
+                  aria-label="Rename selected chat"
+                />
+              ) : (
+                <div className="flex items-center justify-between gap-2">
+                  <span className="truncate">
+                    {titleOverrides[selectedChat.id] ?? selectedChat.file_name ?? "New chat"}
+                  </span>
+                  {selectedChat.can_edit ? (
+                    <button
+                      type="button"
+                      aria-label="Edit title"
+                      onClick={() => {
+                        setEditingChatId(selectedChat.id);
+                        setEditingTitle(
+                          titleOverrides[selectedChat.id] ??
+                            selectedChat.file_name ??
+                            "New chat",
+                        );
+                      }}
+                      className="rounded-md p-1 text-[12px] text-zinc-400 transition hover:text-zinc-100 hover:bg-zinc-900/60"
+                      title="Rename"
+                    >
+                      ✏️
+                    </button>
+                  ) : null}
+                </div>
+              )}
             </div>
           ) : null}
 
@@ -427,7 +541,7 @@ function DashboardPageContent() {
                   }
                 }}
                 disabled={shareLoading}
-                className="rounded-lg bg-gradient-to-r from-blue-500 to-purple-500 px-3 py-2 text-xs font-semibold text-white shadow-sm transition hover:shadow-md hover:scale-[1.03] duration-200 disabled:opacity-70"
+                className="rounded-lg bg-linear-to-r from-blue-500 to-purple-500 px-3 py-2 text-xs font-semibold text-white shadow-sm transition hover:shadow-md hover:scale-[1.03] duration-200 disabled:opacity-70"
               >
                 {shareLoading ? "Creating…" : "Share"}
               </button>
@@ -442,7 +556,7 @@ function DashboardPageContent() {
         ) : null}
 
         {shareLink && showShareLinkContainer ? (
-          <div className="mx-6 mt-3 relative flex flex-col gap-2 rounded-xl border border-zinc-700 bg-gradient-to-br from-zinc-900 to-zinc-800/30 px-4 py-3 shadow-sm transition hover:shadow-lg hover:scale-[1.01]">
+          <div className="mx-6 mt-3 relative flex flex-col gap-2 rounded-xl border border-zinc-700 bg-linear-to-br from-zinc-900 to-zinc-800/30 px-4 py-3 shadow-sm transition hover:shadow-lg hover:scale-[1.01]">
             <button
               type="button"
               onClick={() => setShowShareLinkContainer(false)}
@@ -469,7 +583,7 @@ function DashboardPageContent() {
                     // ignore clipboard errors
                   }
                 }}
-                className="rounded-lg bg-gradient-to-r from-blue-500 to-purple-500 px-3 py-2 text-xs font-semibold text-white shadow-sm transition hover:shadow-md hover:scale-[1.03] duration-200"
+                className="rounded-lg bg-linear-to-r from-blue-500 to-purple-500 px-3 py-2 text-xs font-semibold text-white shadow-sm transition hover:shadow-md hover:scale-[1.03] duration-200"
               >
                 Copy
               </button>
@@ -489,7 +603,7 @@ function DashboardPageContent() {
               {loadingChats ? "Loading chats…" : "Select a chat to begin."}
             </div>
           ) : !selectedChat.file_url ? (
-            <div className="mx-auto w-full max-w-2xl rounded-2xl border border-zinc-700 bg-gradient-to-br from-zinc-900 to-zinc-800/30 p-8 shadow-sm hover:shadow-lg hover:scale-[1.01] transition">
+            <div className="mx-auto w-full max-w-2xl rounded-2xl border border-zinc-700 bg-linear-to-br from-zinc-900 to-zinc-800/30 p-8 shadow-sm hover:shadow-lg hover:scale-[1.01] transition">
               <h2 className="text-lg font-semibold text-white">Upload File</h2>
               <p className="mt-2 text-sm text-zinc-400">
                 Upload a CSV or Excel file to start. We’ll use it to generate insights and answer questions.
@@ -514,7 +628,7 @@ function DashboardPageContent() {
                   type="button"
                   onClick={() => void handleUpload()}
                   disabled={uploading || !selectedChat.can_edit}
-                  className="w-full rounded-xl bg-gradient-to-r from-blue-500 to-purple-500 px-4 py-3 text-sm font-semibold text-white shadow-sm transition hover:shadow-md hover:scale-[1.03] duration-200 disabled:opacity-70"
+                  className="w-full rounded-xl bg-linear-to-r from-blue-500 to-purple-500 px-4 py-3 text-sm font-semibold text-white shadow-sm transition hover:shadow-md hover:scale-[1.03] duration-200 disabled:opacity-70"
                 >
                   {uploading ? "Uploading…" : "Upload & Start Chat"}
                 </button>
@@ -534,7 +648,7 @@ function DashboardPageContent() {
                   datasetVersion={selectedChat.file_url}
                 />
               ) : null}
-              <div className="flex-1 overflow-auto rounded-2xl border border-zinc-700 bg-gradient-to-br from-zinc-900 to-zinc-800/20 px-4 py-4">
+              <div className="flex-1 overflow-auto rounded-2xl border border-zinc-700 bg-linear-to-br from-zinc-900 to-zinc-800/20 px-4 py-4">
                 {loadingMessages ? (
                   <p className="py-6 text-sm text-zinc-400">Loading messages…</p>
                 ) : messages.length === 0 ? (
@@ -589,7 +703,7 @@ function DashboardPageContent() {
                   type="button"
                   disabled={sending || !selectedChat.can_edit}
                   onClick={() => void sendMessage()}
-                  className="rounded-xl bg-gradient-to-r from-blue-500 to-purple-500 px-4 py-3 text-sm font-semibold text-white shadow-sm transition hover:shadow-md hover:scale-[1.03] duration-200 disabled:opacity-70"
+                  className="rounded-xl bg-linear-to-r from-blue-500 to-purple-500 px-4 py-3 text-sm font-semibold text-white shadow-sm transition hover:shadow-md hover:scale-[1.03] duration-200 disabled:opacity-70"
                 >
                   {sending ? "Sending…" : "Send"}
                 </button>
