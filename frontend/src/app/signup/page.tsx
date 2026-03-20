@@ -29,6 +29,9 @@ export default function SignupPage() {
     setLoading(true);
 
     try {
+      const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/$/, "");
+      console.log("API URL:", apiBase);
+      console.log("Signup endpoint path:", "/auth/signup");
       const data = await apiRequest<SignupResponse>("/auth/signup", {
         method: "POST",
         body: { email, username, password },
@@ -37,7 +40,14 @@ export default function SignupPage() {
       setDevOtp(data.dev_otp ?? null);
       setSuccessMessage("Account created. Enter the OTP (check backend logs in dev mode).");
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Unable to create account.");
+      console.error("Signup error:", err);
+      setError(
+        err instanceof ApiError
+          ? err.message
+          : err instanceof Error
+            ? err.message
+            : "Unable to create account.",
+      );
     } finally {
       setLoading(false);
     }
