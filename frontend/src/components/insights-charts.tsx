@@ -1,7 +1,23 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Bar, BarChart, Line, LineChart, Pie, PieChart, ResponsiveContainer, XAxis, YAxis } from "recharts";
+import { motion } from "framer-motion";
+import {
+  Bar,
+  BarChart,
+  Cell,
+  Legend,
+  Line,
+  LineChart,
+  Pie,
+  PieChart,
+  ResponsiveContainer,
+  Sector,
+  type SectorProps,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
 import { toPng } from "html-to-image";
 
 import { ApiError, apiRequest } from "@/lib/api";
@@ -67,6 +83,11 @@ export function InsightsCharts({
   const barRef = useRef<HTMLDivElement | null>(null);
   const lineRef = useRef<HTMLDivElement | null>(null);
   const pieRef = useRef<HTMLDivElement | null>(null);
+
+  const piePalette = useMemo(
+    () => ["#06b6d4", "#8b5cf6", "#3b82f6", "#22c55e", "#f97316", "#f43f5e"],
+    [],
+  );
 
   const filterColumn = insights?.slicer.filter_column ?? null;
   const filterOptions = insights?.slicer.values ?? [];
@@ -206,7 +227,13 @@ export function InsightsCharts({
   const pieChart = selectedCharts.find((c) => c.chart_kind === "pie");
 
   return (
-    <div className="rounded-2xl border border-zinc-700 bg-gradient-to-br from-zinc-900 to-zinc-800/30 p-4 shadow-sm transition hover:shadow-lg">
+    <motion.div
+      className="rounded-2xl border border-zinc-700 bg-gradient-to-br from-zinc-900 to-zinc-800/30 p-4 shadow-sm transition hover:shadow-lg"
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.5 }}
+      viewport={{ once: true }}
+    >
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <h2 className="text-lg font-semibold text-white">Insights</h2>
@@ -224,7 +251,7 @@ export function InsightsCharts({
             type="button"
             onClick={() => void downloadExportCsv()}
             disabled={exportLoading !== null}
-            className="rounded-lg bg-gradient-to-r from-blue-500 to-purple-500 px-3 py-2 text-xs font-semibold text-white shadow-sm transition hover:shadow-md"
+            className="rounded-lg bg-gradient-to-r from-blue-500 to-purple-500 px-3 py-2 text-xs font-semibold text-white shadow-sm transition hover:shadow-md hover:scale-[1.03] duration-200"
           >
             {exportLoading === "csv" ? "Exporting CSV..." : "Download as CSV"}
           </button>
@@ -232,7 +259,7 @@ export function InsightsCharts({
             type="button"
             onClick={() => void downloadExportPdf()}
             disabled={exportLoading !== null}
-            className="rounded-lg bg-gradient-to-r from-blue-500 to-purple-500 px-3 py-2 text-xs font-semibold text-white shadow-sm transition hover:shadow-md"
+            className="rounded-lg bg-gradient-to-r from-blue-500 to-purple-500 px-3 py-2 text-xs font-semibold text-white shadow-sm transition hover:shadow-md hover:scale-[1.03] duration-200"
           >
             {exportLoading === "pdf" ? "Generating PDF..." : "Export this as PDF"}
           </button>
@@ -240,7 +267,7 @@ export function InsightsCharts({
             type="button"
             onClick={() => void downloadExportDocx()}
             disabled={exportLoading !== null}
-            className="rounded-lg bg-gradient-to-r from-blue-500 to-purple-500 px-3 py-2 text-xs font-semibold text-white shadow-sm transition hover:shadow-md"
+            className="rounded-lg bg-gradient-to-r from-blue-500 to-purple-500 px-3 py-2 text-xs font-semibold text-white shadow-sm transition hover:shadow-md hover:scale-[1.03] duration-200"
           >
             {exportLoading === "docx" ? "Generating DOC..." : "Generate DOC report"}
           </button>
@@ -312,18 +339,25 @@ export function InsightsCharts({
             <p className="mt-4 text-sm text-zinc-400">Updating charts…</p>
           ) : null}
 
-          <div className="mt-4 grid gap-4 lg:grid-cols-3">
+          <div className="mt-4 grid gap-8 lg:grid-cols-3">
             <div className="lg:col-span-1">
               {barChart ? (
-                <div ref={barRef} className="rounded-xl border border-zinc-700 bg-gradient-to-br from-zinc-950 to-zinc-800/20 p-3 shadow-sm hover:shadow-md transition">
+                <motion.div
+                  ref={barRef}
+                  className="rounded-xl border border-zinc-700 bg-zinc-900 p-4 shadow-sm transition-all hover:shadow-xl hover:border-blue-500/50"
+                  initial={{ opacity: 0, y: 20 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.5 }}
+                  viewport={{ once: true }}
+                >
                   <div className="flex items-start justify-between gap-2">
-                    <p className="text-sm font-semibold text-zinc-100">{barChart.title}</p>
+                    <p className="text-sm font-semibold text-white">{barChart.title}</p>
                     <button
                       type="button"
                       onClick={() =>
                         void downloadChartAsPng(barRef.current, `chart_bar_${chatId}.png`)
                       }
-                      className="rounded-lg bg-gradient-to-r from-blue-500 to-purple-500 px-2 py-1 text-[11px] font-semibold text-white shadow-sm transition hover:shadow-md"
+                      className="rounded-lg bg-gradient-to-r from-blue-500 to-purple-500 px-2 py-1 text-[11px] font-semibold text-white shadow-sm transition hover:shadow-md hover:scale-[1.03] duration-200"
                     >
                       PNG
                     </button>
@@ -331,27 +365,50 @@ export function InsightsCharts({
                   <div className="mt-2 h-[240px]">
                     <ResponsiveContainer width="100%" height="100%">
                       <BarChart data={barChart.data} margin={{ top: 10, right: 10, left: -5, bottom: 10 }}>
-                        <XAxis dataKey="label" tick={{ fontSize: 10 }} />
-                        <YAxis />
-                        <Bar dataKey="value" fill="#e7e5e4" />
+                        <defs>
+                          <linearGradient id="barGrad" x1="0" y1="0" x2="1" y2="0">
+                            <stop offset="0%" stopColor="#3b82f6" />
+                            <stop offset="100%" stopColor="#8b5cf6" />
+                          </linearGradient>
+                        </defs>
+                        <Tooltip
+                          contentStyle={{
+                            backgroundColor: "#0b1220",
+                            border: "1px solid #334155",
+                            color: "#fff",
+                          }}
+                          itemStyle={{ color: "#fff" }}
+                          labelStyle={{ color: "#fff" }}
+                        />
+                        <Legend wrapperStyle={{ color: "#e5e7eb" }} />
+                        <XAxis dataKey="label" tick={{ fontSize: 10, fill: "#e5e7eb" }} />
+                        <YAxis tick={{ fill: "#e5e7eb" }} />
+                        <Bar dataKey="value" name="Value" fill="url(#barGrad)" radius={[10, 10, 0, 0]} />
                       </BarChart>
                     </ResponsiveContainer>
                   </div>
-                </div>
+                </motion.div>
               ) : null}
             </div>
 
             <div className="lg:col-span-1">
               {lineChart ? (
-                <div ref={lineRef} className="rounded-xl border border-zinc-700 bg-gradient-to-br from-zinc-950 to-zinc-800/20 p-3 shadow-sm hover:shadow-md transition">
+                <motion.div
+                  ref={lineRef}
+                  className="rounded-xl border border-zinc-700 bg-zinc-900 p-4 shadow-sm transition-all hover:shadow-xl hover:border-blue-500/50"
+                  initial={{ opacity: 0, y: 20 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.5 }}
+                  viewport={{ once: true }}
+                >
                   <div className="flex items-start justify-between gap-2">
-                    <p className="text-sm font-semibold text-zinc-100">{lineChart.title}</p>
+                    <p className="text-sm font-semibold text-white">{lineChart.title}</p>
                     <button
                       type="button"
                       onClick={() =>
                         void downloadChartAsPng(lineRef.current, `chart_line_${chatId}.png`)
                       }
-                      className="rounded-lg bg-gradient-to-r from-blue-500 to-purple-500 px-2 py-1 text-[11px] font-semibold text-white shadow-sm transition hover:shadow-md"
+                      className="rounded-lg bg-gradient-to-r from-blue-500 to-purple-500 px-2 py-1 text-[11px] font-semibold text-white shadow-sm transition hover:shadow-md hover:scale-[1.03] duration-200"
                     >
                       PNG
                     </button>
@@ -359,27 +416,58 @@ export function InsightsCharts({
                   <div className="mt-2 h-[240px]">
                     <ResponsiveContainer width="100%" height="100%">
                       <LineChart data={lineChart.data} margin={{ top: 10, right: 10, left: -5, bottom: 10 }}>
-                        <XAxis dataKey="label" tick={{ fontSize: 10 }} />
-                        <YAxis />
-                        <Line type="monotone" dataKey="value" stroke="#fef3c7" dot={false} strokeWidth={2} />
+                        <defs>
+                          <linearGradient id="lineGrad" x1="0" y1="0" x2="1" y2="0">
+                            <stop offset="0%" stopColor="#06b6d4" />
+                            <stop offset="100%" stopColor="#8b5cf6" />
+                          </linearGradient>
+                        </defs>
+                        <Tooltip
+                          contentStyle={{
+                            backgroundColor: "#0b1220",
+                            border: "1px solid #334155",
+                            color: "#fff",
+                          }}
+                          itemStyle={{ color: "#fff" }}
+                          labelStyle={{ color: "#fff" }}
+                        />
+                        <Legend wrapperStyle={{ color: "#e5e7eb" }} />
+                        <XAxis dataKey="label" tick={{ fontSize: 10, fill: "#e5e7eb" }} />
+                        <YAxis tick={{ fill: "#e5e7eb" }} />
+                        <Line
+                          type="monotone"
+                          dataKey="value"
+                          name="Value"
+                          stroke="url(#lineGrad)"
+                          strokeWidth={3}
+                          dot={false}
+                          style={{ filter: "drop-shadow(0 0 7px rgba(139,92,246,0.35))" }}
+                        />
                       </LineChart>
                     </ResponsiveContainer>
                   </div>
-                </div>
+                </motion.div>
               ) : null}
             </div>
 
             <div className="lg:col-span-1">
               {pieChart ? (
-                <div ref={pieRef} className="rounded-xl border border-zinc-700 bg-gradient-to-br from-zinc-950 to-zinc-800/20 p-3 shadow-sm hover:shadow-md transition">
+                <motion.div
+                  ref={pieRef}
+                  className="rounded-xl border border-zinc-700 bg-zinc-900 p-4 shadow-sm transition-all hover:shadow-xl hover:border-blue-500/50"
+                  initial={{ opacity: 0, y: 20 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.5 }}
+                  viewport={{ once: true }}
+                >
                   <div className="flex items-start justify-between gap-2">
-                    <p className="text-sm font-semibold text-zinc-100">{pieChart.title}</p>
+                    <p className="text-sm font-semibold text-white">{pieChart.title}</p>
                     <button
                       type="button"
                       onClick={() =>
                         void downloadChartAsPng(pieRef.current, `chart_pie_${chatId}.png`)
                       }
-                      className="rounded-lg bg-gradient-to-r from-blue-500 to-purple-500 px-2 py-1 text-[11px] font-semibold text-white shadow-sm transition hover:shadow-md"
+                      className="rounded-lg bg-gradient-to-r from-blue-500 to-purple-500 px-2 py-1 text-[11px] font-semibold text-white shadow-sm transition hover:shadow-md hover:scale-[1.03] duration-200"
                     >
                       PNG
                     </button>
@@ -387,6 +475,17 @@ export function InsightsCharts({
                   <div className="mt-2 h-[240px]">
                     <ResponsiveContainer width="100%" height="100%">
                       <PieChart>
+                        <Tooltip
+                          contentStyle={{
+                            backgroundColor: "#0b1220",
+                            border: "1px solid #334155",
+                            color: "#fff",
+                          }}
+                          itemStyle={{ color: "#fff" }}
+                          labelStyle={{ color: "#fff" }}
+                          formatter={(v: unknown) => [String(v), "Value"]}
+                        />
+                        <Legend wrapperStyle={{ color: "#e5e7eb" }} />
                         <Pie
                           data={pieChart.data}
                           dataKey="value"
@@ -396,17 +495,31 @@ export function InsightsCharts({
                           outerRadius="80%"
                           labelLine={false}
                           label={({ name }) => name}
-                        />
+                          activeShape={(props: SectorProps) => {
+                            const outer =
+                              typeof props.outerRadius === "number"
+                                ? props.outerRadius
+                                : Number(props.outerRadius ?? 0);
+                            return <Sector {...props} outerRadius={outer + 10} />;
+                          }}
+                        >
+                          {pieChart.data.map((_, idx) => (
+                            <Cell
+                              key={`pie-cell-${idx}`}
+                              fill={piePalette[idx % piePalette.length]}
+                            />
+                          ))}
+                        </Pie>
                       </PieChart>
                     </ResponsiveContainer>
                   </div>
-                </div>
+                </motion.div>
               ) : null}
             </div>
           </div>
         </>
       )}
-    </div>
+    </motion.div>
   );
 }
 
