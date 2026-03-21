@@ -20,7 +20,9 @@ import {
 } from "recharts";
 import { toPng } from "html-to-image";
 
-import { ApiError, apiRequest } from "@/lib/api";
+import { apiRequest } from "@/lib/api";
+import { UserMessage, userFacingError } from "@/lib/user-messages";
+import { buttonMotion } from "@/lib/motion-presets";
 
 type SuggestedChart = {
   chart_kind: "bar" | "line" | "pie";
@@ -85,7 +87,7 @@ export function InsightsCharts({
   const pieRef = useRef<HTMLDivElement | null>(null);
 
   const piePalette = useMemo(
-    () => ["#06b6d4", "#8b5cf6", "#3b82f6", "#22c55e", "#f97316", "#f43f5e"],
+    () => ["#7c3aed", "#06b6d4", "#a78bfa", "#22d3ee", "#22c55e", "#f97316", "#f43f5e"],
     [],
   );
 
@@ -104,7 +106,7 @@ export function InsightsCharts({
       setFilter({ values: [] });
       setBaseLoaded(true);
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Unable to load insights.");
+      setError(userFacingError(err, UserMessage.insights));
     } finally {
       setLoading(false);
     }
@@ -145,7 +147,7 @@ export function InsightsCharts({
 
       setInsights((prev) => (prev ? { ...prev, suggested_charts: updatedCharts } : prev));
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Unable to refresh charts.");
+      setError(userFacingError(err, UserMessage.refreshCharts));
     } finally {
       setFilterLoading(false);
     }
@@ -184,7 +186,7 @@ export function InsightsCharts({
       });
       if (!resp.ok) {
         const data = await resp.json().catch(() => null);
-        throw new Error(data?.detail ?? "Export failed.");
+        throw new Error(data?.detail ?? UserMessage.export);
       }
       const blob = await resp.blob();
       const url = URL.createObjectURL(blob);
@@ -199,7 +201,7 @@ export function InsightsCharts({
       a.click();
       URL.revokeObjectURL(url);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Unable to export.");
+      setError(userFacingError(err, UserMessage.export));
     } finally {
       setExportLoading(null);
     }
@@ -218,7 +220,7 @@ export function InsightsCharts({
       a.download = filename;
       a.click();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Unable to export chart.");
+      setError(userFacingError(err, UserMessage.exportChart));
     }
   };
 
@@ -228,10 +230,10 @@ export function InsightsCharts({
 
   return (
     <motion.div
-      className="rounded-2xl border border-zinc-700 bg-linear-to-br from-zinc-900 to-zinc-800/30 p-4 shadow-sm transition hover:shadow-lg"
-      initial={{ opacity: 0, y: 20 }}
+      className="rounded-2xl border border-white/[0.08] bg-linear-to-br from-zinc-900/95 via-zinc-900/72 to-saas-primary/12 p-4 shadow-xl shadow-black/25 backdrop-blur-sm transition-all duration-300 hover:scale-[1.005] hover:border-white/10 hover:shadow-2xl hover:shadow-saas-primary/15"
+      initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.5 }}
+      transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
       viewport={{ once: true }}
     >
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
@@ -247,41 +249,47 @@ export function InsightsCharts({
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
-          <button
+          <motion.button
             type="button"
             onClick={() => void downloadExportCsv()}
             disabled={exportLoading !== null}
-            className="rounded-lg bg-linear-to-r from-blue-500 to-purple-500 px-3 py-2 text-xs font-semibold text-white shadow-sm transition hover:shadow-md hover:scale-[1.03] duration-200"
+            {...(exportLoading === null ? buttonMotion : {})}
+            className="rounded-xl bg-linear-to-br from-saas-primary to-saas-accent px-3 py-2 text-xs font-semibold text-white shadow-md shadow-saas-primary/25 transition-shadow duration-200 hover:shadow-lg hover:shadow-saas-primary/30 disabled:opacity-70"
           >
             {exportLoading === "csv" ? "Exporting CSV..." : "Download as CSV"}
-          </button>
-          <button
+          </motion.button>
+          <motion.button
             type="button"
             onClick={() => void downloadExportPdf()}
             disabled={exportLoading !== null}
-            className="rounded-lg bg-linear-to-r from-blue-500 to-purple-500 px-3 py-2 text-xs font-semibold text-white shadow-sm transition hover:shadow-md hover:scale-[1.03] duration-200"
+            {...(exportLoading === null ? buttonMotion : {})}
+            className="rounded-xl bg-linear-to-br from-saas-primary to-saas-accent px-3 py-2 text-xs font-semibold text-white shadow-md shadow-saas-primary/25 transition-shadow duration-200 hover:shadow-lg hover:shadow-saas-primary/30 disabled:opacity-70"
           >
             {exportLoading === "pdf" ? "Generating PDF..." : "Export this as PDF"}
-          </button>
-          <button
+          </motion.button>
+          <motion.button
             type="button"
             onClick={() => void downloadExportDocx()}
             disabled={exportLoading !== null}
-            className="rounded-lg bg-linear-to-r from-blue-500 to-purple-500 px-3 py-2 text-xs font-semibold text-white shadow-sm transition hover:shadow-md hover:scale-[1.03] duration-200"
+            {...(exportLoading === null ? buttonMotion : {})}
+            className="rounded-xl bg-linear-to-br from-saas-primary to-saas-accent px-3 py-2 text-xs font-semibold text-white shadow-md shadow-saas-primary/25 transition-shadow duration-200 hover:shadow-lg hover:shadow-saas-primary/30 disabled:opacity-70"
           >
             {exportLoading === "docx" ? "Generating DOC..." : "Generate DOC report"}
-          </button>
+          </motion.button>
         </div>
       </div>
 
       {error ? <p className="mt-3 text-sm text-rose-300">{error}</p> : null}
 
       {loading ? (
-        <p className="mt-4 text-sm text-zinc-400">Analyzing dataset…</p>
+        <div className="mt-6 flex min-h-[120px] flex-col items-center justify-center rounded-xl border border-white/5 bg-zinc-950/30 px-6 py-10 text-center">
+          <p className="text-sm text-zinc-500">Analyzing your dataset…</p>
+          <p className="mt-2 text-xs text-zinc-600">Charts and insights will load here shortly.</p>
+        </div>
       ) : (
         <>
           {filterColumn ? (
-            <div className="mt-4 rounded-xl border border-zinc-700 bg-linear-to-br from-zinc-900 to-zinc-800/30 p-3">
+            <div className="mt-4 rounded-2xl border border-white/[0.08] bg-linear-to-br from-zinc-900/92 to-saas-primary/10 p-3 shadow-md shadow-black/20 backdrop-blur-sm">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
                   <p className="text-xs font-semibold uppercase tracking-[0.14em] text-zinc-400">
@@ -293,14 +301,15 @@ export function InsightsCharts({
                   </p>
                 </div>
                 <div className="flex gap-2">
-                  <button
+                  <motion.button
                     type="button"
                     onClick={() => setFilter({ values: [] })}
                     disabled={filterLoading}
-                    className="rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 text-xs font-semibold text-zinc-100 transition hover:border-blue-500 hover:shadow-md disabled:opacity-70 focus:ring-2 focus:ring-blue-500"
+                    {...(!filterLoading ? buttonMotion : {})}
+                    className="rounded-xl border border-zinc-800 bg-zinc-950/90 px-3 py-2 text-xs font-semibold text-zinc-100 transition-all duration-200 hover:border-saas-primary/40 hover:shadow-md disabled:opacity-70 focus:ring-2 focus:ring-saas-primary/25 focus:ring-offset-0"
                   >
                     Clear
-                  </button>
+                  </motion.button>
                 </div>
               </div>
 
@@ -336,7 +345,9 @@ export function InsightsCharts({
           ) : null}
 
           {filterLoading ? (
-            <p className="mt-4 text-sm text-zinc-400">Updating charts…</p>
+            <div className="mt-4 flex items-center justify-center rounded-lg border border-white/5 bg-zinc-950/20 py-4 text-center">
+              <p className="text-xs text-zinc-500">Updating charts…</p>
+            </div>
           ) : null}
 
           <div className="mt-4 grid gap-8 lg:grid-cols-3">
@@ -344,31 +355,32 @@ export function InsightsCharts({
               {barChart ? (
                 <motion.div
                   ref={barRef}
-                  className="w-full rounded-xl border border-zinc-700 bg-zinc-900 p-4 shadow-sm transition-all hover:shadow-xl hover:border-blue-500/50"
-                  initial={{ opacity: 0, y: 20 }}
+                  className="w-full rounded-2xl border border-white/[0.08] bg-linear-to-br from-zinc-900/95 to-saas-primary/10 p-4 shadow-lg shadow-black/25 backdrop-blur-sm transition-all duration-300 hover:scale-[1.01] hover:shadow-xl hover:border-saas-accent/25"
+                  initial={{ opacity: 0, y: 12 }}
                   whileInView={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.5 }}
+                  transition={{ duration: 0.38, ease: [0.22, 1, 0.36, 1] }}
                   viewport={{ once: true }}
                 >
                   <div className="flex items-start justify-between gap-2">
                     <p className="text-sm font-semibold text-white">{barChart.title}</p>
-                    <button
+                    <motion.button
                       type="button"
                       onClick={() =>
                         void downloadChartAsPng(barRef.current, `chart_bar_${chatId}.png`)
                       }
-                      className="rounded-lg bg-linear-to-r from-blue-500 to-purple-500 px-2 py-1 text-[11px] font-semibold text-white shadow-sm transition hover:shadow-md hover:scale-[1.03] duration-200"
+                      {...buttonMotion}
+                      className="rounded-lg bg-linear-to-br from-saas-primary to-saas-accent px-2 py-1 text-[11px] font-semibold text-white shadow-md shadow-saas-primary/25 transition-shadow duration-200 hover:shadow-lg hover:shadow-saas-primary/30"
                     >
                       PNG
-                    </button>
+                    </motion.button>
                   </div>
                   <div className="mt-2 min-h-[240px] h-[240px] w-full">
                     <ResponsiveContainer width="100%" height="100%">
                       <BarChart data={barChart.data} margin={{ top: 10, right: 10, left: -5, bottom: 10 }}>
                         <defs>
                           <linearGradient id="barGrad" x1="0" y1="0" x2="1" y2="0">
-                            <stop offset="0%" stopColor="#3b82f6" />
-                            <stop offset="100%" stopColor="#8b5cf6" />
+                            <stop offset="0%" stopColor="#7c3aed" />
+                            <stop offset="100%" stopColor="#06b6d4" />
                           </linearGradient>
                         </defs>
                         <Tooltip
@@ -395,23 +407,24 @@ export function InsightsCharts({
               {lineChart ? (
                 <motion.div
                   ref={lineRef}
-                  className="w-full rounded-xl border border-zinc-700 bg-zinc-900 p-4 shadow-sm transition-all hover:shadow-xl hover:border-blue-500/50"
-                  initial={{ opacity: 0, y: 20 }}
+                  className="w-full rounded-2xl border border-white/[0.08] bg-linear-to-br from-zinc-900/95 to-saas-primary/10 p-4 shadow-lg shadow-black/25 backdrop-blur-sm transition-all duration-300 hover:scale-[1.01] hover:shadow-xl hover:border-saas-accent/25"
+                  initial={{ opacity: 0, y: 12 }}
                   whileInView={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.5 }}
+                  transition={{ duration: 0.38, ease: [0.22, 1, 0.36, 1] }}
                   viewport={{ once: true }}
                 >
                   <div className="flex items-start justify-between gap-2">
                     <p className="text-sm font-semibold text-white">{lineChart.title}</p>
-                    <button
+                    <motion.button
                       type="button"
                       onClick={() =>
                         void downloadChartAsPng(lineRef.current, `chart_line_${chatId}.png`)
                       }
-                      className="rounded-lg bg-linear-to-r from-blue-500 to-purple-500 px-2 py-1 text-[11px] font-semibold text-white shadow-sm transition hover:shadow-md hover:scale-[1.03] duration-200"
+                      {...buttonMotion}
+                      className="rounded-lg bg-linear-to-br from-saas-primary to-saas-accent px-2 py-1 text-[11px] font-semibold text-white shadow-md shadow-saas-primary/25 transition-shadow duration-200 hover:shadow-lg hover:shadow-saas-primary/30"
                     >
                       PNG
-                    </button>
+                    </motion.button>
                   </div>
                   <div className="mt-2 min-h-[240px] h-[240px] w-full">
                     <ResponsiveContainer width="100%" height="100%">
@@ -419,7 +432,7 @@ export function InsightsCharts({
                         <defs>
                           <linearGradient id="lineGrad" x1="0" y1="0" x2="1" y2="0">
                             <stop offset="0%" stopColor="#06b6d4" />
-                            <stop offset="100%" stopColor="#8b5cf6" />
+                            <stop offset="100%" stopColor="#7c3aed" />
                           </linearGradient>
                         </defs>
                         <Tooltip
@@ -454,23 +467,24 @@ export function InsightsCharts({
               {pieChart ? (
                 <motion.div
                   ref={pieRef}
-                  className="w-full rounded-xl border border-zinc-700 bg-zinc-900 p-4 shadow-sm transition-all hover:shadow-xl hover:border-blue-500/50"
-                  initial={{ opacity: 0, y: 20 }}
+                  className="w-full rounded-2xl border border-white/[0.08] bg-linear-to-br from-zinc-900/95 to-saas-primary/10 p-4 shadow-lg shadow-black/25 backdrop-blur-sm transition-all duration-300 hover:scale-[1.01] hover:shadow-xl hover:border-saas-accent/25"
+                  initial={{ opacity: 0, y: 12 }}
                   whileInView={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.5 }}
+                  transition={{ duration: 0.38, ease: [0.22, 1, 0.36, 1] }}
                   viewport={{ once: true }}
                 >
                   <div className="flex items-start justify-between gap-2">
                     <p className="text-sm font-semibold text-white">{pieChart.title}</p>
-                    <button
+                    <motion.button
                       type="button"
                       onClick={() =>
                         void downloadChartAsPng(pieRef.current, `chart_pie_${chatId}.png`)
                       }
-                      className="rounded-lg bg-linear-to-r from-blue-500 to-purple-500 px-2 py-1 text-[11px] font-semibold text-white shadow-sm transition hover:shadow-md hover:scale-[1.03] duration-200"
+                      {...buttonMotion}
+                      className="rounded-lg bg-linear-to-br from-saas-primary to-saas-accent px-2 py-1 text-[11px] font-semibold text-white shadow-md shadow-saas-primary/25 transition-shadow duration-200 hover:shadow-lg hover:shadow-saas-primary/30"
                     >
                       PNG
-                    </button>
+                    </motion.button>
                   </div>
                   <div className="mt-2 min-h-[240px] h-[240px] w-full">
                     <ResponsiveContainer width="100%" height="100%">

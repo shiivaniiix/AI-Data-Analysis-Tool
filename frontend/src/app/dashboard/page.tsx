@@ -5,7 +5,10 @@ import { motion } from "framer-motion";
 import { useRouter, useSearchParams } from "next/navigation";
 
 import { DashboardAuthActions } from "@/components/dashboard-auth-actions";
-import { ApiError, apiRequest, apiUpload } from "@/lib/api";
+import { ButtonSpinner } from "@/components/button-spinner";
+import { apiRequest, apiUpload } from "@/lib/api";
+import { buttonMotion, fadeIn, fadeInUpDelayed, slideInLeft } from "@/lib/motion-presets";
+import { UserMessage, userFacingError } from "@/lib/user-messages";
 import { InsightsCharts } from "@/components/insights-charts";
 
 type ChatSession = {
@@ -130,7 +133,7 @@ function DashboardPageContent() {
         setNewChatIdFromLogin(null);
       }
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Unable to load chats.");
+      setError(userFacingError(err, UserMessage.loadChats));
     } finally {
       setLoadingChats(false);
     }
@@ -144,7 +147,7 @@ function DashboardPageContent() {
       const list = await apiRequest<ChatMessage[]>(`/chats/${chatId}/messages`, { token });
       setMessages(list);
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Unable to load messages.");
+      setError(userFacingError(err, UserMessage.loadMessages));
     } finally {
       setLoadingMessages(false);
     }
@@ -161,7 +164,7 @@ function DashboardPageContent() {
       setSelectedChatId(created.id);
       setMessages([]);
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Unable to create a new chat.");
+      setError(userFacingError(err, UserMessage.newChat));
     } finally {
       setLoadingChats(false);
     }
@@ -179,14 +182,14 @@ function DashboardPageContent() {
         setMessages([]);
       }
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Unable to delete chat.");
+      setError(userFacingError(err, UserMessage.deleteChat));
     }
   };
 
   const handleUpload = async () => {
     if (!token || !selectedChatId) return;
     if (!uploadFile) {
-      setError("Select a CSV or Excel file first.");
+      setError(UserMessage.pickFile);
       return;
     }
 
@@ -204,7 +207,7 @@ function DashboardPageContent() {
         await loadMessages(selectedChatId);
       }
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Upload failed.");
+      setError(userFacingError(err, UserMessage.upload));
     } finally {
       setUploading(false);
     }
@@ -256,7 +259,7 @@ function DashboardPageContent() {
         );
         if (!resp.ok) {
           const data = await resp.json().catch(() => null);
-          throw new Error(data?.detail ?? "Export failed.");
+          throw new Error(data?.detail ?? UserMessage.export);
         }
 
         const blob = await resp.blob();
@@ -299,44 +302,59 @@ function DashboardPageContent() {
       });
       await loadMessages(selectedChatId);
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Unable to send message.");
+      setError(userFacingError(err, UserMessage.sendMessage));
     } finally {
       setSending(false);
     }
   };
 
   return (
-    <main className="flex h-screen bg-linear-to-br from-zinc-950 via-zinc-950 to-purple-950 text-zinc-100">
-      <aside className="flex w-[280px] flex-col border-r border-zinc-800 bg-linear-to-b from-zinc-950 to-zinc-900">
+    <main className="flex h-screen bg-linear-to-br from-zinc-950 via-saas-primary/12 to-zinc-950 text-zinc-100">
+      <motion.aside
+        {...slideInLeft}
+        className="flex w-[280px] flex-col border-r border-white/[0.06] bg-linear-to-b from-zinc-950 via-saas-primary/8 to-zinc-900/98 backdrop-blur-sm"
+      >
         <div className="p-4">
           <div className="flex items-center justify-between gap-3">
             <h2 className="text-sm font-semibold tracking-wide text-white">Chats</h2>
-            <button
+            <motion.button
               type="button"
               onClick={() => void createNewChat()}
               disabled={loadingChats}
-              className="rounded-lg bg-linear-to-r from-blue-500 to-purple-500 px-2 py-1 text-xs font-semibold text-white shadow-sm transition hover:shadow-md hover:scale-[1.03] duration-200 disabled:opacity-70"
+              {...(!loadingChats ? buttonMotion : {})}
+              className="rounded-xl bg-linear-to-br from-saas-primary to-saas-accent px-2 py-1 text-xs font-semibold text-white shadow-md shadow-saas-primary/25 transition-shadow duration-200 hover:shadow-lg hover:shadow-saas-primary/30 disabled:opacity-70"
             >
               New
-            </button>
+            </motion.button>
           </div>
 
           <div className="mt-3">
             {loadingChats ? (
-              <p className="text-xs text-zinc-400">Loading…</p>
+              <div className="rounded-xl border border-white/5 bg-zinc-950/30 px-3 py-6 text-center">
+                <p className="text-xs text-zinc-500">Loading your chats…</p>
+              </div>
             ) : chats.length === 0 ? (
-              <p className="text-xs text-zinc-400">No chats yet.</p>
+              <div className="rounded-xl border border-white/5 bg-zinc-950/30 px-3 py-6 text-center">
+                <p className="text-xs font-medium leading-relaxed text-zinc-300">
+                  Upload your first file to get started
+                </p>
+                <p className="mt-2 text-[11px] leading-relaxed text-zinc-500">
+                  Tap <span className="text-zinc-400">New</span>, then upload a CSV or Excel file.
+                </p>
+              </div>
             ) : (
               <ul className="mt-2 max-h-[calc(100vh-220px)] space-y-2 overflow-auto pr-1">
                 {chats.map((c) => {
                   const isActive = c.id === selectedChatId;
                   return (
-                    <li
+                    <motion.li
                       key={c.id}
-                      className={`group cursor-pointer rounded-xl border px-3 py-2 text-xs transition ${
+                      whileHover={{ scale: 1.015 }}
+                      transition={{ type: "spring", stiffness: 400, damping: 30 }}
+                      className={`group cursor-pointer rounded-xl border px-3 py-2 text-xs transition-colors duration-200 ${
                         isActive
-                          ? "border-zinc-700 bg-zinc-800 border-l-2 border-l-blue-500"
-                          : "border-zinc-800 bg-zinc-900/40 hover:border-zinc-700 hover:bg-zinc-900/60 hover:shadow-md"
+                          ? "border-saas-primary/35 bg-linear-to-br from-zinc-800/90 to-saas-primary/20 border-l-2 border-l-saas-accent shadow-md shadow-saas-primary/15"
+                          : "border-zinc-800/80 bg-zinc-900/35 backdrop-blur-sm hover:border-saas-primary/25 hover:bg-zinc-900/60 hover:shadow-md"
                       }`}
                       onClick={() => setSelectedChatId(c.id)}
                       title={c.file_name ?? "New chat"}
@@ -360,7 +378,7 @@ function DashboardPageContent() {
                       cancelRename();
                     }
                   }}
-                  className="w-full min-w-0 truncate rounded-lg border border-zinc-700 bg-zinc-950 px-2 py-1 text-[11px] text-zinc-100 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500 transition-all duration-200"
+                  className="w-full min-w-0 truncate rounded-lg border border-zinc-700/80 bg-zinc-950/80 px-2 py-1 text-[11px] text-zinc-100 outline-none transition-all duration-200 focus:border-saas-primary/50 focus:ring-2 focus:ring-saas-primary/25 focus:ring-offset-0"
                   aria-label="Rename chat"
                 />
               ) : (
@@ -413,7 +431,7 @@ function DashboardPageContent() {
                           ✕
                         </button>
                       </div>
-                    </li>
+                    </motion.li>
                   );
                 })}
               </ul>
@@ -424,10 +442,10 @@ function DashboardPageContent() {
         <div className="mt-auto p-4">
           <DashboardAuthActions />
         </div>
-      </aside>
+      </motion.aside>
 
-      <section className="flex flex-1 flex-col">
-        <header className="flex items-center justify-between border-b border-zinc-800 px-6 py-6">
+      <motion.section {...fadeInUpDelayed} className="flex flex-1 flex-col">
+        <header className="flex items-center justify-between border-b border-white/[0.06] bg-zinc-950/30 px-6 py-6 backdrop-blur-sm">
           <div>
             <h1 className="text-lg font-semibold text-white">DataChat AI</h1>
             <p className="text-xs text-zinc-400">
@@ -435,7 +453,7 @@ function DashboardPageContent() {
             </p>
           </div>
           {selectedChat ? (
-            <div className="max-w-[320px] truncate rounded-lg border border-zinc-700 bg-linear-to-br from-zinc-900 to-zinc-800/30 px-3 py-2 text-xs text-zinc-200">
+            <div className="max-w-[320px] truncate rounded-xl border border-white/[0.08] bg-linear-to-br from-zinc-900/90 to-saas-primary/10 px-3 py-2 text-xs text-zinc-200 shadow-md shadow-black/20 backdrop-blur-sm">
               {editingChatId === selectedChat.id ? (
                 <input
                   autoFocus
@@ -452,7 +470,7 @@ function DashboardPageContent() {
                       cancelRename();
                     }
                   }}
-                  className="w-full rounded-lg border border-zinc-700 bg-zinc-950 px-2 py-1 text-xs text-zinc-100 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500 transition-all duration-200"
+                  className="w-full rounded-lg border border-zinc-700/80 bg-zinc-950/80 px-2 py-1 text-xs text-zinc-100 outline-none transition-all duration-200 focus:border-saas-primary/50 focus:ring-2 focus:ring-saas-primary/25 focus:ring-offset-0"
                   aria-label="Rename selected chat"
                 />
               ) : (
@@ -490,14 +508,14 @@ function DashboardPageContent() {
                 onChange={(e) =>
                   setSharePermission(e.target.value as "view" | "edit")
                 }
-                className="rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 text-xs text-zinc-100 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500"
+                className="rounded-xl border border-zinc-700/80 bg-zinc-950/80 px-3 py-2 text-xs text-zinc-100 outline-none transition-all duration-200 focus:border-saas-primary/50 focus:ring-2 focus:ring-saas-primary/25 focus:ring-offset-0"
                 disabled={shareLoading}
                 aria-label="Share permission"
               >
                 <option value="view">View only</option>
                 <option value="edit">Edit</option>
               </select>
-              <button
+              <motion.button
                 type="button"
                 onClick={async () => {
                   if (!token || !selectedChatId) return;
@@ -526,7 +544,7 @@ function DashboardPageContent() {
                     );
                     if (!resp.ok) {
                       const data = await resp.json().catch(() => null);
-                      throw new Error(data?.detail ?? "Unable to create share link.");
+                      throw new Error(data?.detail ?? UserMessage.share);
                     }
                     const data = (await resp.json()) as { share_token: string };
                     const link = `${window.location.origin}/share?token=${encodeURIComponent(
@@ -535,16 +553,17 @@ function DashboardPageContent() {
                     setShareLink(link);
                     setShowShareLinkContainer(true);
                   } catch (err) {
-                    setShareError(err instanceof Error ? err.message : "Unable to share chat.");
+                    setShareError(userFacingError(err, UserMessage.share));
                   } finally {
                     setShareLoading(false);
                   }
                 }}
                 disabled={shareLoading}
-                className="rounded-lg bg-linear-to-r from-blue-500 to-purple-500 px-3 py-2 text-xs font-semibold text-white shadow-sm transition hover:shadow-md hover:scale-[1.03] duration-200 disabled:opacity-70"
+                {...(!shareLoading ? buttonMotion : {})}
+                className="rounded-xl bg-linear-to-br from-saas-primary to-saas-accent px-3 py-2 text-xs font-semibold text-white shadow-md shadow-saas-primary/25 transition-shadow duration-200 hover:shadow-lg hover:shadow-saas-primary/30 disabled:opacity-70"
               >
                 {shareLoading ? "Creating…" : "Share"}
-              </button>
+              </motion.button>
             </div>
           ) : null}
         </header>
@@ -556,7 +575,10 @@ function DashboardPageContent() {
         ) : null}
 
         {shareLink && showShareLinkContainer ? (
-          <div className="mx-6 mt-3 relative flex flex-col gap-2 rounded-xl border border-zinc-700 bg-linear-to-br from-zinc-900 to-zinc-800/30 px-4 py-3 shadow-sm transition hover:shadow-lg hover:scale-[1.01]">
+          <motion.div
+            {...fadeIn}
+            className="relative mx-6 mt-3 flex flex-col gap-2 rounded-2xl border border-white/[0.08] bg-linear-to-br from-zinc-900/95 to-saas-primary/12 px-4 py-3 shadow-lg shadow-black/25 backdrop-blur-sm transition-all duration-300 hover:scale-[1.002] hover:shadow-xl hover:shadow-saas-primary/15"
+          >
             <button
               type="button"
               onClick={() => setShowShareLinkContainer(false)}
@@ -572,9 +594,9 @@ function DashboardPageContent() {
               <input
                 readOnly
                 value={shareLink}
-                className="flex-1 min-w-[260px] rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 text-xs text-zinc-100 focus:ring-2 focus:ring-blue-500"
+                className="min-w-[260px] flex-1 rounded-xl border border-zinc-700/80 bg-zinc-950/80 px-3 py-2 text-xs text-zinc-100 outline-none transition-all duration-200 focus:border-saas-primary/50 focus:ring-2 focus:ring-saas-primary/25 focus:ring-offset-0"
               />
-              <button
+              <motion.button
                 type="button"
                 onClick={async () => {
                   try {
@@ -583,12 +605,13 @@ function DashboardPageContent() {
                     // ignore clipboard errors
                   }
                 }}
-                className="rounded-lg bg-linear-to-r from-blue-500 to-purple-500 px-3 py-2 text-xs font-semibold text-white shadow-sm transition hover:shadow-md hover:scale-[1.03] duration-200"
+                {...buttonMotion}
+                className="rounded-xl bg-linear-to-br from-saas-primary to-saas-accent px-3 py-2 text-xs font-semibold text-white shadow-md shadow-saas-primary/25 transition-shadow duration-200 hover:shadow-lg hover:shadow-saas-primary/30"
               >
                 Copy
-              </button>
+              </motion.button>
             </div>
-          </div>
+          </motion.div>
         ) : null}
 
         {error ? (
@@ -599,11 +622,27 @@ function DashboardPageContent() {
 
         <div className="flex-1 overflow-auto px-6 py-8">
           {!selectedChat ? (
-            <div className="rounded-2xl border border-zinc-800 bg-zinc-900/50 p-8 text-sm text-zinc-300">
-              {loadingChats ? "Loading chats…" : "Select a chat to begin."}
-            </div>
+            <motion.div
+              {...fadeIn}
+              className="flex min-h-[280px] flex-col items-center justify-center rounded-2xl border border-white/[0.08] bg-linear-to-br from-zinc-900/85 to-saas-primary/10 px-8 py-12 text-center shadow-xl shadow-black/20 backdrop-blur-sm"
+            >
+              {loadingChats ? (
+                <p className="text-sm text-zinc-500">Loading your workspace…</p>
+              ) : (
+                <>
+                  <p className="text-sm font-medium text-zinc-300">Select a chat to begin</p>
+                  <p className="mt-2 max-w-sm text-xs leading-relaxed text-zinc-500">
+                    Pick a session from the sidebar, or create one with{" "}
+                    <span className="text-zinc-400">New</span> to upload data.
+                  </p>
+                </>
+              )}
+            </motion.div>
           ) : !selectedChat.file_url ? (
-            <div className="mx-auto w-full max-w-2xl rounded-2xl border border-zinc-700 bg-linear-to-br from-zinc-900 to-zinc-800/30 p-8 shadow-sm hover:shadow-lg hover:scale-[1.01] transition">
+            <motion.div
+              {...fadeIn}
+              className="mx-auto w-full max-w-2xl rounded-2xl border border-white/[0.08] bg-linear-to-br from-zinc-900/95 via-zinc-900/70 to-saas-primary/12 p-8 shadow-xl shadow-black/25 backdrop-blur-sm transition-all duration-300 hover:scale-[1.01] hover:border-white/12 hover:shadow-2xl hover:shadow-saas-primary/15"
+            >
               <h2 className="text-lg font-semibold text-white">Upload File</h2>
               <p className="mt-2 text-sm text-zinc-400">
                 Upload a CSV or Excel file to start. We’ll use it to generate insights and answer questions.
@@ -616,7 +655,7 @@ function DashboardPageContent() {
                     type="file"
                     accept=".csv,.xls,.xlsx"
                     onChange={(e) => setUploadFile(e.target.files?.[0] ?? null)}
-                    className="w-full cursor-pointer rounded-xl border border-zinc-700 bg-zinc-950 p-3 text-sm text-zinc-100 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500 transition-all duration-200"
+                    className="w-full cursor-pointer rounded-xl border border-zinc-700/80 bg-zinc-950/80 p-3 text-sm text-zinc-100 outline-none transition-all duration-200 focus:border-saas-primary/50 focus:ring-2 focus:ring-saas-primary/25 focus:ring-offset-0"
                     disabled={!selectedChat.can_edit}
                   />
                   {uploadFile ? (
@@ -624,23 +663,31 @@ function DashboardPageContent() {
                   ) : null}
                 </label>
 
-                <button
+                <motion.button
                   type="button"
                   onClick={() => void handleUpload()}
                   disabled={uploading || !selectedChat.can_edit}
-                  className="w-full rounded-xl bg-linear-to-r from-blue-500 to-purple-500 px-4 py-3 text-sm font-semibold text-white shadow-sm transition hover:shadow-md hover:scale-[1.03] duration-200 disabled:opacity-70"
+                  {...(!uploading && selectedChat.can_edit ? buttonMotion : {})}
+                  className="flex w-full items-center justify-center gap-2 rounded-xl bg-linear-to-br from-saas-primary to-saas-accent px-4 py-3 text-sm font-semibold text-white shadow-lg shadow-saas-primary/25 transition-shadow duration-200 hover:shadow-xl hover:shadow-saas-primary/35 disabled:cursor-not-allowed disabled:opacity-70"
                 >
-                  {uploading ? "Uploading…" : "Upload & Start Chat"}
-                </button>
+                  {uploading ? (
+                    <>
+                      <ButtonSpinner className="border-white" />
+                      Uploading...
+                    </>
+                  ) : (
+                    "Upload & Start Chat"
+                  )}
+                </motion.button>
               </div>
               {!selectedChat.can_edit ? (
                 <p className="mt-4 text-sm text-rose-300">
                   You have view-only access to this chat.
                 </p>
               ) : null}
-            </div>
+            </motion.div>
           ) : (
-            <div className="mx-auto flex w-full max-w-3xl flex-col">
+            <motion.div {...fadeIn} className="mx-auto flex w-full max-w-3xl flex-col">
               {token ? (
                 <InsightsCharts
                   token={token}
@@ -648,12 +695,17 @@ function DashboardPageContent() {
                   datasetVersion={selectedChat.file_url}
                 />
               ) : null}
-              <div className="flex-1 overflow-auto rounded-2xl border border-zinc-700 bg-linear-to-br from-zinc-900 to-zinc-800/20 px-4 py-4">
+              <div className="flex-1 overflow-auto rounded-2xl border border-white/[0.08] bg-linear-to-br from-zinc-900/92 via-zinc-900/65 to-saas-primary/10 px-4 py-4 shadow-inner shadow-black/30 backdrop-blur-sm">
                 {loadingMessages ? (
-                  <p className="py-6 text-sm text-zinc-400">Loading messages…</p>
+                  <div className="flex min-h-[200px] items-center justify-center py-10">
+                    <p className="text-sm text-zinc-500">Loading messages…</p>
+                  </div>
                 ) : messages.length === 0 ? (
-                  <div className="py-10 text-center text-sm text-zinc-400">
-                    No messages yet. Ask your first question about the file.
+                  <div className="flex min-h-[220px] flex-col items-center justify-center px-4 py-12 text-center">
+                    <p className="text-sm font-medium text-zinc-300">Ask a question to explore insights</p>
+                    <p className="mt-2 max-w-md text-xs leading-relaxed text-zinc-500">
+                      Your conversation will appear here. Try asking about trends, totals, or filters.
+                    </p>
                   </div>
                 ) : (
                   <div className="space-y-3">
@@ -667,8 +719,8 @@ function DashboardPageContent() {
                           <motion.div
                             className={`max-w-[85%] whitespace-pre-wrap rounded-2xl border px-4 py-3 text-sm ${
                               isUser
-                                ? "border-blue-500/40 bg-blue-900/20 text-zinc-50"
-                                : "border-zinc-700 bg-zinc-950/60 text-zinc-100"
+                                ? "border-saas-primary/30 bg-linear-to-br from-saas-primary/15 to-saas-accent/10 text-zinc-50 shadow-md shadow-saas-primary/15"
+                                : "border-zinc-700/80 bg-zinc-950/70 text-zinc-100 backdrop-blur-sm"
                             }`}
                             initial={{ opacity: 0, y: 10 }}
                             animate={{ opacity: 1, y: 0 }}
@@ -691,7 +743,7 @@ function DashboardPageContent() {
                   placeholder="Ask about your data..."
                   rows={1}
                   disabled={!selectedChat.can_edit}
-                  className="min-h-[46px] flex-1 resize-none rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-3 text-sm text-zinc-100 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500 transition-all duration-200"
+                  className="min-h-[46px] flex-1 resize-none rounded-xl border border-zinc-700/80 bg-zinc-950/80 px-4 py-3 text-sm text-zinc-100 outline-none transition-all duration-200 focus:border-saas-primary/50 focus:ring-2 focus:ring-saas-primary/25 focus:ring-offset-0"
                   onKeyDown={(e) => {
                     if (e.key === "Enter" && !e.shiftKey) {
                       e.preventDefault();
@@ -699,22 +751,23 @@ function DashboardPageContent() {
                     }
                   }}
                 />
-                <button
+                <motion.button
                   type="button"
                   disabled={sending || !selectedChat.can_edit}
                   onClick={() => void sendMessage()}
-                  className="rounded-xl bg-linear-to-r from-blue-500 to-purple-500 px-4 py-3 text-sm font-semibold text-white shadow-sm transition hover:shadow-md hover:scale-[1.03] duration-200 disabled:opacity-70"
+                  {...(!sending && selectedChat.can_edit ? buttonMotion : {})}
+                  className="rounded-xl bg-linear-to-br from-saas-primary to-saas-accent px-4 py-3 text-sm font-semibold text-white shadow-lg shadow-saas-primary/25 transition-shadow duration-200 hover:shadow-xl hover:shadow-saas-primary/35 disabled:opacity-70"
                 >
                   {sending ? "Sending…" : "Send"}
-                </button>
+                </motion.button>
               </div>
               <p className="mt-3 text-xs text-zinc-500">
                 Tip: press Enter to send, Shift+Enter for a new line.
               </p>
-            </div>
+            </motion.div>
           )}
         </div>
-      </section>
+      </motion.section>
     </main>
   );
 }
@@ -723,8 +776,8 @@ export default function DashboardPage() {
   return (
     <Suspense
       fallback={
-        <main className="flex min-h-screen items-center justify-center bg-zinc-950 px-6 py-10 text-zinc-200">
-          <p className="text-sm text-zinc-400">Loading dashboard…</p>
+        <main className="flex min-h-screen items-center justify-center bg-linear-to-br from-zinc-950 via-saas-primary/10 to-zinc-950 px-6 py-10 text-zinc-200">
+          <p className="text-sm text-saas-accent/80">Loading dashboard…</p>
         </main>
       }
     >

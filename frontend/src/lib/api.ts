@@ -30,17 +30,22 @@ export async function apiRequest<T>(
       "NEXT_PUBLIC_API_BASE_URL is not configured. Please set it in your environment (production requires it).",
     );
   }
-  const response = await fetch(`${API_BASE_URL}${path}`, {
-    method,
-    headers: {
-      "Content-Type": "application/json",
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    },
-    body: body ? JSON.stringify(body) : undefined,
-  });
+  let response: Response;
+  try {
+    response = await fetch(`${API_BASE_URL}${path}`, {
+      method,
+      headers: {
+        "Content-Type": "application/json",
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      body: body ? JSON.stringify(body) : undefined,
+    });
+  } catch {
+    throw new ApiError("Something went wrong. Please try again.");
+  }
 
   if (!response.ok) {
-    let message = "Request failed.";
+    let message = "Something went wrong. Please try again.";
     try {
       const data = (await response.json()) as { detail?: string };
       if (data?.detail) {
@@ -74,16 +79,21 @@ export async function apiUpload<T>(
       "NEXT_PUBLIC_API_BASE_URL is not configured. Please set it in your environment (production requires it).",
     );
   }
-  const response = await fetch(`${API_BASE_URL}${path}`, {
-    method,
-    headers: {
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    },
-    body,
-  });
+  let response: Response;
+  try {
+    response = await fetch(`${API_BASE_URL}${path}`, {
+      method,
+      headers: {
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      body,
+    });
+  } catch {
+    throw new ApiError("Something went wrong. Please try again.");
+  }
 
   if (!response.ok) {
-    let message = "Request failed.";
+    let message = "Something went wrong. Please try again.";
     try {
       const data = (await response.json()) as { detail?: string };
       if (data?.detail) message = data.detail;

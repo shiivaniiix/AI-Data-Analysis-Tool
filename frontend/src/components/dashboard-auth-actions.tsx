@@ -1,9 +1,12 @@
 "use client";
 
+import { motion } from "framer-motion";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 
-import { ApiError, apiRequest } from "@/lib/api";
+import { apiRequest } from "@/lib/api";
+import { UserMessage, userFacingError } from "@/lib/user-messages";
+import { buttonMotion, fadeInUp } from "@/lib/motion-presets";
 
 export function DashboardAuthActions() {
   const router = useRouter();
@@ -26,11 +29,11 @@ export function DashboardAuthActions() {
   const handleDeleteAccount = async () => {
     const token = localStorage.getItem("datachat_token");
     if (!token) {
-      setError("You are not logged in.");
+      setError(UserMessage.notLoggedIn);
       return;
     }
     if (!password) {
-      setError("Please enter your password to delete your account.");
+      setError(UserMessage.needPassword);
       return;
     }
     setLoadingDelete(true);
@@ -43,26 +46,30 @@ export function DashboardAuthActions() {
       });
       logout();
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Unable to delete account.");
+      setError(userFacingError(err, UserMessage.deleteAccount));
     } finally {
       setLoadingDelete(false);
     }
   };
 
   return (
-    <div className="rounded-2xl border border-zinc-800 bg-zinc-900/80 p-5">
+    <motion.div
+      {...fadeInUp}
+      className="rounded-2xl border border-white/[0.08] bg-linear-to-br from-zinc-900/92 via-zinc-900/72 to-saas-primary/10 p-5 shadow-xl shadow-black/25 backdrop-blur-sm transition-all duration-300 hover:border-white/10 hover:shadow-saas-primary/10"
+    >
       <h2 className="text-sm font-semibold uppercase tracking-[0.14em] text-zinc-400">Account</h2>
       <p className="mt-3 text-sm text-zinc-300">
         Signed in as <span className="font-semibold text-zinc-100">{username ?? "Unknown"}</span>
       </p>
       <div className="mt-4 flex flex-wrap gap-3">
-        <button
+        <motion.button
           type="button"
           onClick={logout}
-          className="rounded-xl border border-zinc-700 px-4 py-2 text-sm font-semibold text-zinc-100 transition hover:border-zinc-500"
+          {...buttonMotion}
+          className="rounded-xl border border-saas-primary/30 bg-zinc-950/50 px-4 py-2 text-sm font-semibold text-zinc-100 shadow-md shadow-black/20 transition-all duration-200 hover:scale-[1.02] hover:border-saas-accent/40 hover:bg-zinc-900/60"
         >
           Logout
-        </button>
+        </motion.button>
       </div>
       <div className="mt-6 space-y-3 rounded-xl border border-rose-900/40 bg-rose-950/20 p-4">
         <p className="text-sm font-semibold text-rose-300">Danger zone</p>
@@ -70,19 +77,20 @@ export function DashboardAuthActions() {
           type="password"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
-          className="w-full rounded-xl border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm text-zinc-100 outline-none focus:border-zinc-500"
+          className="w-full rounded-xl border border-zinc-800 bg-zinc-950/90 px-3 py-2 text-sm text-zinc-100 outline-none transition-all duration-200 focus:border-saas-primary/50 focus:ring-2 focus:ring-saas-primary/25 focus:ring-offset-0"
           placeholder="Enter password to confirm account deletion"
         />
-        <button
+        <motion.button
           type="button"
           onClick={handleDeleteAccount}
           disabled={loadingDelete}
-          className="rounded-xl bg-rose-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-rose-400 disabled:cursor-not-allowed disabled:opacity-70"
+          {...(!loadingDelete ? buttonMotion : {})}
+          className="rounded-xl bg-linear-to-br from-rose-600 to-saas-primary px-4 py-2 text-sm font-semibold text-white shadow-md shadow-rose-900/35 transition-shadow duration-200 hover:shadow-lg hover:shadow-rose-900/45 disabled:cursor-not-allowed disabled:opacity-70"
         >
           {loadingDelete ? "Deleting..." : "Delete account"}
-        </button>
+        </motion.button>
         {error ? <p className="text-sm text-rose-300">{error}</p> : null}
       </div>
-    </div>
+    </motion.div>
   );
 }
