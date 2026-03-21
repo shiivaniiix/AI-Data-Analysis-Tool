@@ -5,6 +5,7 @@ import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 
 import { AuthLoadingScreen } from "@/components/auth-loading-screen";
+import { handleUnauthorizedStatus } from "@/lib/api";
 import { buttonMotion, fadeInUp } from "@/lib/motion-presets";
 import { UserMessage, userFacingError } from "@/lib/user-messages";
 import { getToken } from "@/utils/storage";
@@ -49,6 +50,7 @@ function SharePageContent() {
         });
 
         if (!resp.ok) {
+          if (handleUnauthorizedStatus(resp.status, true)) return;
           const data = await resp.json().catch(() => null);
           throw new Error(data?.detail ?? UserMessage.acceptShare);
         }

@@ -155,7 +155,14 @@ function DashboardPageContent() {
         </div>
       </motion.aside>
 
-      <section className="flex flex-1 items-center justify-center px-8">
+      <section className="relative flex flex-1 items-center justify-center px-8">
+        <button
+          type="button"
+          onClick={() => router.push("/")}
+          className="absolute left-6 top-6 rounded-xl border border-white/10 bg-zinc-900/60 px-3 py-2 text-xs font-medium text-zinc-200 transition-all duration-200 hover:border-saas-primary/40 hover:bg-zinc-800/80"
+        >
+          ← Back to Home
+        </button>
         <div className="max-w-xl rounded-2xl border border-white/8 bg-linear-to-br from-zinc-900/90 to-saas-primary/10 p-10 text-center shadow-xl shadow-black/20">
           <h1 className="text-2xl font-semibold text-white">Your chats</h1>
           <p className="mt-3 text-sm text-zinc-400">

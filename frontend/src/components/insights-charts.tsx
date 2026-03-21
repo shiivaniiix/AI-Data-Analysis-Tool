@@ -20,7 +20,7 @@ import {
 } from "recharts";
 import { toPng } from "html-to-image";
 
-import { apiRequest } from "@/lib/api";
+import { apiRequest, handleUnauthorizedStatus } from "@/lib/api";
 import { UserMessage, userFacingError } from "@/lib/user-messages";
 import { buttonMotion } from "@/lib/motion-presets";
 
@@ -185,6 +185,7 @@ export function InsightsCharts({
         }),
       });
       if (!resp.ok) {
+        if (handleUnauthorizedStatus(resp.status, true)) return;
         const data = await resp.json().catch(() => null);
         throw new Error(data?.detail ?? UserMessage.export);
       }

@@ -29,6 +29,13 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [sessionExpired, setSessionExpired] = useState(false);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const params = new URLSearchParams(window.location.search);
+    setSessionExpired(params.get("reason") === "session-expired");
+  }, []);
 
   useEffect(() => {
     if (authLoading) return;
@@ -75,6 +82,11 @@ export default function LoginPage() {
         <p className="mt-2 text-sm text-zinc-400">
           Log in with your email or username to continue.
         </p>
+        {sessionExpired ? (
+          <p className="mt-3 rounded-xl border border-amber-800/40 bg-amber-950/25 px-3 py-2 text-sm text-amber-200">
+            Session expired. Please login again.
+          </p>
+        ) : null}
         <form className="mt-6 space-y-4" onSubmit={handleLogin}>
           <label className="block">
             <span className="mb-2 block text-sm font-medium text-zinc-200">

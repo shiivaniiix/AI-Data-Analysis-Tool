@@ -10,7 +10,7 @@ import { ButtonSpinner } from "@/components/button-spinner";
 import { DashboardAuthActions } from "@/components/dashboard-auth-actions";
 import { InsightsCharts } from "@/components/insights-charts";
 import { useAuth } from "@/hooks/useAuth";
-import { apiRequest, apiUpload } from "@/lib/api";
+import { apiRequest, apiUpload, handleUnauthorizedStatus } from "@/lib/api";
 import { buttonMotion, fadeIn, fadeInUpDelayed, slideInLeft } from "@/lib/motion-presets";
 import { UserMessage, userFacingError } from "@/lib/user-messages";
 
@@ -204,6 +204,7 @@ export default function ChatPage() {
           }),
         });
         if (!resp.ok) {
+          if (handleUnauthorizedStatus(resp.status, true)) return;
           const data = await resp.json().catch(() => null);
           throw new Error(data?.detail ?? UserMessage.export);
         }
@@ -372,6 +373,7 @@ export default function ChatPage() {
                       body: JSON.stringify({ permission: sharePermission }),
                     });
                     if (!resp.ok) {
+                      if (handleUnauthorizedStatus(resp.status, true)) return;
                       const data = await resp.json().catch(() => null);
                       throw new Error(data?.detail ?? UserMessage.share);
                     }

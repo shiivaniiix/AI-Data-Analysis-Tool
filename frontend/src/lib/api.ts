@@ -1,3 +1,5 @@
+import { clearSession } from "@/utils/storage";
+
 const rawApiBase =
   process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/$/, "") ?? "";
 
@@ -20,6 +22,23 @@ type RequestOptions = {
   body?: unknown;
   token?: string;
 };
+
+function redirectToLoginOnSessionExpiry(): void {
+  if (typeof window === "undefined") return;
+  clearSession();
+  const target = "/login?reason=session-expired";
+  if (window.location.pathname + window.location.search !== target) {
+    window.location.assign(target);
+  }
+}
+
+export function handleUnauthorizedStatus(status: number, hasAuthToken: boolean): boolean {
+  if (status === 401 && hasAuthToken) {
+    redirectToLoginOnSessionExpiry();
+    return true;
+  }
+  return false;
+}
 
 export async function apiRequest<T>(
   path: string,
@@ -45,6 +64,9 @@ export async function apiRequest<T>(
   }
 
   if (!response.ok) {
+    if (handleUnauthorizedStatus(response.status, Boolean(token))) {
+      throw new ApiError("Session expired. Please login again.", 401);
+    }
     let message = "Something went wrong. Please try again.";
     try {
       const data = (await response.json()) as { detail?: string };
@@ -93,6 +115,9 @@ export async function apiUpload<T>(
   }
 
   if (!response.ok) {
+    if (handleUnauthorizedStatus(response.status, Boolean(token))) {
+      throw new ApiError("Session expired. Please login again.", 401);
+    }
     let message = "Something went wrong. Please try again.";
     try {
       const data = (await response.json()) as { detail?: string };
