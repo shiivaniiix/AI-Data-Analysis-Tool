@@ -6,19 +6,19 @@ from app.models.auth import (
     DeleteAccountRequest,
     LoginRequest,
     MessageResponse,
-    ResendOtpRequest,
     SignupRequest,
     SignupResponse,
+    SignupVerifyRequest,
+    SignupResendRequest,
     UserResponse,
-    VerifyOtpRequest,
 )
 from app.models.user import User
 from app.services.auth_service import (
-    create_user_with_otp,
     delete_user_account,
     login_user,
-    resend_user_otp,
-    verify_user_otp,
+    resend_signup_otp,
+    start_signup,
+    verify_signup_otp,
 )
 from app.services.token_service import get_current_user
 from app.utils.db import get_db
@@ -26,25 +26,25 @@ from app.utils.db import get_db
 router = APIRouter(prefix="/auth", tags=["auth"])
 
 
-@router.post("/signup", response_model=SignupResponse, status_code=status.HTTP_201_CREATED)
-def signup(payload: SignupRequest, db: Session = Depends(get_db)) -> SignupResponse:
-    create_user_with_otp(
+@router.post("/signup/start", response_model=SignupResponse, status_code=status.HTTP_200_OK)
+def signup_start(payload: SignupRequest, db: Session = Depends(get_db)) -> SignupResponse:
+    start_signup(
         db, email=payload.email, username=payload.username, password=payload.password
     )
     return SignupResponse(
-        message="Signup successful. Please verify your email with OTP."
+        message="OTP sent. Verify your email to create your account."
     )
 
 
-@router.post("/verify-otp", response_model=UserResponse)
-def verify_otp(payload: VerifyOtpRequest, db: Session = Depends(get_db)) -> UserResponse:
-    user = verify_user_otp(db, email=payload.email, otp_code=payload.otp)
+@router.post("/signup/verify", response_model=UserResponse)
+def signup_verify(payload: SignupVerifyRequest, db: Session = Depends(get_db)) -> UserResponse:
+    user = verify_signup_otp(db, email=payload.email, otp_code=payload.otp)
     return UserResponse.model_validate(user)
 
 
-@router.post("/resend-otp", response_model=MessageResponse)
-def resend_otp(payload: ResendOtpRequest, db: Session = Depends(get_db)) -> MessageResponse:
-    resend_user_otp(db, email=payload.email)
+@router.post("/signup/resend", response_model=MessageResponse)
+def signup_resend(payload: SignupResendRequest, db: Session = Depends(get_db)) -> MessageResponse:
+    resend_signup_otp(db, email=payload.email)
     return MessageResponse(message="OTP resent successfully.")
 
 

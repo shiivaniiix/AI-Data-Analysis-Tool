@@ -13,12 +13,12 @@ class SignupResponse(BaseModel):
     dev_otp: str | None = None
 
 
-class VerifyOtpRequest(BaseModel):
+class SignupVerifyRequest(BaseModel):
     email: EmailStr
     otp: str = Field(min_length=6, max_length=6, pattern=r"^[0-9]{6}$")
 
 
-class ResendOtpRequest(BaseModel):
+class SignupResendRequest(BaseModel):
     email: EmailStr
 
 

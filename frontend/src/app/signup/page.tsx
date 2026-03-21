@@ -43,12 +43,12 @@ export default function SignupPage() {
     setLoading(true);
 
     try {
-      await apiRequest<SignupResponse>("/auth/signup", {
+      await apiRequest<SignupResponse>("/auth/signup/start", {
         method: "POST",
         body: { email, username, password },
       });
       setOtpStep(true);
-      setSuccessMessage("Account created. Enter the OTP sent to your email.");
+      setSuccessMessage("OTP sent. Enter the OTP to verify and create your account.");
     } catch (err) {
       setError(userFacingError(err, UserMessage.signup));
     } finally {
@@ -62,7 +62,7 @@ export default function SignupPage() {
     setSuccessMessage(null);
     setLoading(true);
     try {
-      await apiRequest("/auth/verify-otp", {
+      await apiRequest("/auth/signup/verify", {
         method: "POST",
         body: { email, otp },
       });
@@ -80,7 +80,7 @@ export default function SignupPage() {
     setSuccessMessage(null);
     setResendLoading(true);
     try {
-      const data = await apiRequest<MessageResponse>("/auth/resend-otp", {
+      const data = await apiRequest<MessageResponse>("/auth/signup/resend", {
         method: "POST",
         body: { email },
       });

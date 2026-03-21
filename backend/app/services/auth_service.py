@@ -4,13 +4,14 @@ from fastapi import HTTPException, status
 from sqlalchemy import or_, select
 from sqlalchemy.orm import Session
 
-from app.models.user import User
-from app.models.user_otp import UserOtp
 from app.models.chat import ChatSession
+from app.models.pending_user import PendingUser
+from app.models.user import User
 from app.services.notification_service import send_otp_email
-from app.utils.config import settings
 from app.utils.otp import generate_otp
 from app.utils.security import create_access_token, hash_otp, hash_password, verify_password
+
+OTP_EXPIRE_MINUTES = 5
 
 
 def _find_user_by_email(db: Session, email: str) -> User | None:
@@ -21,96 +22,100 @@ def _find_user_by_username(db: Session, username: str) -> User | None:
     return db.scalar(select(User).where(User.username == username.lower()))
 
 
-def _issue_new_otp_for_user(db: Session, *, user: User) -> str:
-    db.query(UserOtp).filter(
-        UserOtp.user_id == user.id,
-        UserOtp.consumed_at.is_(None),
-    ).delete(synchronize_session=False)
-
-    otp_code = generate_otp()
-    otp_entry = UserOtp(
-        user_id=user.id,
-        otp_hash=hash_otp(otp_code),
-        expires_at=datetime.now(timezone.utc) + timedelta(minutes=settings.otp_expire_minutes),
-    )
-    db.add(otp_entry)
-    db.commit()
-    send_otp_email(email=user.email, otp_code=otp_code)
-    return otp_code
+def _find_pending_by_email(db: Session, email: str) -> PendingUser | None:
+    return db.scalar(select(PendingUser).where(PendingUser.email == email.lower().strip()))
 
 
-def create_user_with_otp(
-    db: Session, *, email: str, username: str, password: str
-) -> tuple[User, str]:
+def start_signup(db: Session, *, email: str, username: str, password: str) -> None:
     normalized_email = email.lower().strip()
     normalized_username = username.lower().strip()
+    now = datetime.now(timezone.utc)
+    otp_code = generate_otp()
+    otp_expires_at = now + timedelta(minutes=OTP_EXPIRE_MINUTES)
 
-    if _find_user_by_email(db, normalized_email):
+    pending = _find_pending_by_email(db, normalized_email)
+    if pending:
+        pending.username = normalized_username
+        pending.password_hash = hash_password(password)
+        pending.otp_hash = hash_otp(otp_code)
+        pending.expires_at = otp_expires_at
+    else:
+        pending = PendingUser(
+            email=normalized_email,
+            username=normalized_username,
+            password_hash=hash_password(password),
+            otp_hash=hash_otp(otp_code),
+            expires_at=otp_expires_at,
+        )
+        db.add(pending)
+
+    db.commit()
+    send_otp_email(email=normalized_email, otp_code=otp_code)
+
+
+def verify_signup_otp(db: Session, *, email: str, otp_code: str) -> User:
+    normalized_email = email.lower().strip()
+    pending = _find_pending_by_email(db, normalized_email)
+    if not pending:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Pending signup not found. Start signup again.",
+        )
+
+    now = datetime.now(timezone.utc)
+    expires_at = pending.expires_at
+    if expires_at.tzinfo is None:
+        expires_at = expires_at.replace(tzinfo=timezone.utc)
+    if expires_at < now:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="OTP has expired. Please resend OTP.",
+        )
+
+    if pending.otp_hash != hash_otp(otp_code):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid OTP.",
+        )
+
+    if _find_user_by_email(db, pending.email):
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail="Email is already registered.",
         )
-    if _find_user_by_username(db, normalized_username):
+    if _find_user_by_username(db, pending.username):
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail="Username is already taken.",
         )
 
     user = User(
-        email=normalized_email,
-        username=normalized_username,
-        password_hash=hash_password(password),
-        is_verified=False,
+        email=pending.email,
+        username=pending.username,
+        password_hash=pending.password_hash,
+        is_verified=True,
     )
     db.add(user)
-    db.flush()
-    otp_code = _issue_new_otp_for_user(db, user=user)
-    db.refresh(user)
-
-    return user, otp_code
-
-
-def verify_user_otp(db: Session, *, email: str, otp_code: str) -> User:
-    user = _find_user_by_email(db, email.lower().strip())
-    if not user:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found.")
-
-    if user.is_verified:
-        return user
-
-    otp_record = db.scalar(
-        select(UserOtp)
-        .where(UserOtp.user_id == user.id, UserOtp.consumed_at.is_(None))
-        .order_by(UserOtp.created_at.desc())
-    )
-    if not otp_record:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="OTP not found. Please sign up again.",
-        )
-
-    now = datetime.now(timezone.utc)
-    expires_at = otp_record.expires_at
-    if expires_at.tzinfo is None:
-        expires_at = expires_at.replace(tzinfo=timezone.utc)
-
-    if expires_at < now:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="OTP has expired.",
-        )
-
-    if otp_record.otp_hash != hash_otp(otp_code):
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid OTP.",
-        )
-
-    otp_record.consumed_at = now
-    user.is_verified = True
+    db.delete(pending)
     db.commit()
     db.refresh(user)
     return user
+
+
+def resend_signup_otp(db: Session, *, email: str) -> None:
+    normalized_email = email.lower().strip()
+    pending = _find_pending_by_email(db, normalized_email)
+    if not pending:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Pending signup not found. Start signup again.",
+        )
+
+    otp_code = generate_otp()
+    pending.otp_hash = hash_otp(otp_code)
+    pending.expires_at = datetime.now(timezone.utc) + timedelta(minutes=OTP_EXPIRE_MINUTES)
+    db.commit()
+    send_otp_email(email=normalized_email, otp_code=otp_code)
 
 
 def login_user(db: Session, *, identifier: str, password: str) -> dict[str, str]:
@@ -158,15 +163,3 @@ def delete_user_account(db: Session, *, user_id: str, password: str) -> None:
 
     db.delete(user)
     db.commit()
-
-
-def resend_user_otp(db: Session, *, email: str) -> None:
-    user = _find_user_by_email(db, email.lower().strip())
-    if not user:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found.")
-    if user.is_verified:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Email is already verified.",
-        )
-    _issue_new_otp_for_user(db, user=user)

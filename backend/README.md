@@ -41,8 +41,9 @@ FastAPI backend for DataChat AI (Codezista).
 
 Passwords are stored with **PBKDF2-HMAC-SHA256** (via passlib), not bcrypt—long passwords are supported and there is no 72-byte limit. If you previously used bcrypt in this project, existing password hashes will not verify; sign up again or clear the `users` table for local dev.
 
-- `POST /api/auth/signup`
-- `POST /api/auth/verify-otp`
+- `POST /api/auth/signup/start`
+- `POST /api/auth/signup/verify`
+- `POST /api/auth/signup/resend`
 - `POST /api/auth/login`
 - `POST /api/auth/delete-account` (requires Bearer JWT)
 
