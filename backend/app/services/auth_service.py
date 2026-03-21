@@ -1,7 +1,8 @@
 from datetime import datetime, timedelta, timezone
+import logging
 
 from fastapi import HTTPException, status
-from sqlalchemy import or_, select
+from sqlalchemy import delete, or_, select
 from sqlalchemy.orm import Session
 
 from app.models.chat import ChatSession
@@ -12,6 +13,21 @@ from app.utils.otp import generate_otp
 from app.utils.security import create_access_token, hash_otp, hash_password, verify_password
 
 OTP_EXPIRE_MINUTES = 5
+logger = logging.getLogger(__name__)
+
+
+def cleanup_expired_pending_users(db: Session) -> int:
+    """
+    Remove stale pending signups whose OTP window has expired.
+    Returns number of deleted rows.
+    """
+    now = datetime.now(timezone.utc)
+    deleted_count = (
+        db.execute(delete(PendingUser).where(PendingUser.expires_at < now)).rowcount or 0
+    )
+    if deleted_count:
+        db.commit()
+    return int(deleted_count)
 
 
 def _find_user_by_email(db: Session, email: str) -> User | None:
@@ -27,6 +43,10 @@ def _find_pending_by_email(db: Session, email: str) -> PendingUser | None:
 
 
 def start_signup(db: Session, *, email: str, username: str, password: str) -> None:
+    deleted_count = cleanup_expired_pending_users(db)
+    if deleted_count:
+        logger.info("Cleaned up %s expired pending signup record(s).", deleted_count)
+
     normalized_email = email.lower().strip()
     normalized_username = username.lower().strip()
     now = datetime.now(timezone.utc)

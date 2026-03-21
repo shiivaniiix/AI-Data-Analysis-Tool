@@ -21,7 +21,9 @@ from app.routes.auth import router as auth_router
 from app.routes.dev import router as dev_router
 from app.routes.health import router as health_router
 from app.routes.chats import router as chats_router
+from app.services.auth_service import cleanup_expired_pending_users
 from app.utils.db import engine
+from app.utils.db import SessionLocal
 
 logger = logging.getLogger(__name__)
 
@@ -53,6 +55,12 @@ def on_startup() -> None:
         f"set (length {len(_resend)})" if _resend else "not set — OTP email endpoints will return 503 until configured",
     )
     Base.metadata.create_all(bind=engine)
+    db = SessionLocal()
+    try:
+        deleted_count = cleanup_expired_pending_users(db)
+        logger.info("Pending signup cleanup on startup deleted %s record(s).", deleted_count)
+    finally:
+        db.close()
 
 
 @app.on_event("shutdown")
