@@ -23,6 +23,18 @@ export function getUsername(): string | null {
   return getStorage()?.getItem(STORAGE_KEYS.USERNAME) ?? null;
 }
 
+export function setUsername(username: string): void {
+  getStorage()?.setItem(STORAGE_KEYS.USERNAME, username);
+}
+
+export function getUserEmail(): string | null {
+  return getStorage()?.getItem(STORAGE_KEYS.USER_EMAIL) ?? null;
+}
+
+export function setUserEmail(email: string): void {
+  getStorage()?.setItem(STORAGE_KEYS.USER_EMAIL, email);
+}
+
 export function getNewChatId(): string | null {
   return getStorage()?.getItem(STORAGE_KEYS.NEW_CHAT_ID) ?? null;
 }

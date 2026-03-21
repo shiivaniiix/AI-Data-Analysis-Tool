@@ -6,6 +6,7 @@ from sqlalchemy import delete, or_, select
 from sqlalchemy.orm import Session
 
 from app.models.chat import ChatSession
+from app.models.pending_email_change import PendingEmailChange
 from app.models.pending_user import PendingUser
 from app.models.user import User
 from app.services.notification_service import send_otp_email
@@ -30,6 +31,19 @@ def cleanup_expired_pending_users(db: Session) -> int:
     return int(deleted_count)
 
 
+def cleanup_expired_pending_email_changes(db: Session) -> int:
+    now = datetime.now(timezone.utc)
+    deleted_count = (
+        db.execute(
+            delete(PendingEmailChange).where(PendingEmailChange.expires_at < now)
+        ).rowcount
+        or 0
+    )
+    if deleted_count:
+        db.commit()
+    return int(deleted_count)
+
+
 def _find_user_by_email(db: Session, email: str) -> User | None:
     return db.scalar(select(User).where(User.email == email.lower()))
 
@@ -40,6 +54,12 @@ def _find_user_by_username(db: Session, username: str) -> User | None:
 
 def _find_pending_by_email(db: Session, email: str) -> PendingUser | None:
     return db.scalar(select(PendingUser).where(PendingUser.email == email.lower().strip()))
+
+
+def _find_pending_email_change_by_user(db: Session, user_id: str) -> PendingEmailChange | None:
+    return db.scalar(
+        select(PendingEmailChange).where(PendingEmailChange.user_id == user_id)
+    )
 
 
 def start_signup(db: Session, *, email: str, username: str, password: str) -> None:
@@ -183,3 +203,112 @@ def delete_user_account(db: Session, *, user_id: str, password: str) -> None:
 
     db.delete(user)
     db.commit()
+
+
+def update_username(db: Session, *, user_id: str, username: str) -> User:
+    user = db.get(User, user_id)
+    if not user:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found.")
+
+    normalized_username = username.lower().strip()
+    existing = _find_user_by_username(db, normalized_username)
+    if existing and existing.id != user_id:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Username is already taken.",
+        )
+
+    user.username = normalized_username
+    db.commit()
+    db.refresh(user)
+    return user
+
+
+def start_email_change(db: Session, *, user_id: str, new_email: str) -> None:
+    deleted_count = cleanup_expired_pending_email_changes(db)
+    if deleted_count:
+        logger.info("Cleaned up %s expired pending email change record(s).", deleted_count)
+
+    user = db.get(User, user_id)
+    if not user:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found.")
+
+    normalized_email = new_email.lower().strip()
+    if normalized_email == user.email:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="New email must be different from current email.",
+        )
+    if _find_user_by_email(db, normalized_email):
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Email is already registered.",
+        )
+
+    otp_code = generate_otp()
+    expires_at = datetime.now(timezone.utc) + timedelta(minutes=OTP_EXPIRE_MINUTES)
+    pending = _find_pending_email_change_by_user(db, user_id)
+    if pending:
+        pending.new_email = normalized_email
+        pending.otp_hash = hash_otp(otp_code)
+        pending.expires_at = expires_at
+    else:
+        pending = PendingEmailChange(
+            user_id=user_id,
+            new_email=normalized_email,
+            otp_hash=hash_otp(otp_code),
+            expires_at=expires_at,
+        )
+        db.add(pending)
+
+    db.commit()
+    send_otp_email(email=normalized_email, otp_code=otp_code)
+
+
+def verify_email_change(db: Session, *, user_id: str, new_email: str, otp_code: str) -> User:
+    user = db.get(User, user_id)
+    if not user:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found.")
+
+    pending = _find_pending_email_change_by_user(db, user_id)
+    if not pending:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Pending email change not found.",
+        )
+
+    normalized_email = new_email.lower().strip()
+    if pending.new_email != normalized_email:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Email does not match pending email change request.",
+        )
+
+    expires_at = pending.expires_at
+    now = datetime.now(timezone.utc)
+    if expires_at.tzinfo is None:
+        expires_at = expires_at.replace(tzinfo=timezone.utc)
+    if expires_at < now:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="OTP has expired. Start email change again.",
+        )
+
+    if pending.otp_hash != hash_otp(otp_code):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid OTP.",
+        )
+
+    existing = _find_user_by_email(db, normalized_email)
+    if existing and existing.id != user_id:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Email is already registered.",
+        )
+
+    user.email = normalized_email
+    db.delete(pending)
+    db.commit()
+    db.refresh(user)
+    return user

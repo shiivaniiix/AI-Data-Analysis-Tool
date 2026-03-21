@@ -6,7 +6,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 
 import { AuthLoadingScreen } from "@/components/auth-loading-screen";
-import { DashboardAuthActions } from "@/components/dashboard-auth-actions";
+import { ProfileChip } from "@/components/profile-chip";
 import { useAuth } from "@/hooks/useAuth";
 import { apiRequest } from "@/lib/api";
 import { buttonMotion, slideInLeft } from "@/lib/motion-presets";
@@ -150,12 +150,12 @@ function DashboardPageContent() {
           )}
         </div>
 
-        <div className="mt-auto p-4">
-          <DashboardAuthActions />
-        </div>
       </motion.aside>
 
       <section className="relative flex flex-1 items-center justify-center px-8">
+        <div className="absolute right-6 top-6">
+          <ProfileChip />
+        </div>
         <button
           type="button"
           onClick={() => router.push("/")}

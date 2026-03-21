@@ -7,8 +7,8 @@ import { useParams, useRouter } from "next/navigation";
 
 import { AuthLoadingScreen } from "@/components/auth-loading-screen";
 import { ButtonSpinner } from "@/components/button-spinner";
-import { DashboardAuthActions } from "@/components/dashboard-auth-actions";
 import { InsightsCharts } from "@/components/insights-charts";
+import { ProfileChip } from "@/components/profile-chip";
 import { useAuth } from "@/hooks/useAuth";
 import { apiRequest, apiUpload, handleUnauthorizedStatus } from "@/lib/api";
 import { buttonMotion, fadeIn, fadeInUpDelayed, slideInLeft } from "@/lib/motion-presets";
@@ -320,9 +320,6 @@ export default function ChatPage() {
             )}
           </div>
         </div>
-        <div className="mt-auto p-4">
-          <DashboardAuthActions />
-        </div>
       </motion.aside>
 
       <motion.section {...fadeInUpDelayed} className="flex flex-1 flex-col">
@@ -341,8 +338,10 @@ export default function ChatPage() {
             </div>
           </div>
 
-          {selectedChat?.is_owner ? (
-            <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3">
+            <ProfileChip />
+            {selectedChat?.is_owner ? (
+              <>
               <select
                 value={sharePermission}
                 onChange={(e) => setSharePermission(e.target.value as "view" | "edit")}
@@ -393,8 +392,9 @@ export default function ChatPage() {
               >
                 {shareLoading ? "Creating…" : "Share"}
               </motion.button>
-            </div>
-          ) : null}
+              </>
+            ) : null}
+          </div>
         </header>
 
         {shareError ? (

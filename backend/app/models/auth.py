@@ -44,6 +44,19 @@ class DeleteAccountRequest(BaseModel):
     password: str = Field(min_length=8, max_length=128)
 
 
+class UpdateUsernameRequest(BaseModel):
+    username: str = Field(min_length=3, max_length=50, pattern=r"^[a-zA-Z0-9_]+$")
+
+
+class StartEmailChangeRequest(BaseModel):
+    new_email: EmailStr
+
+
+class VerifyEmailChangeRequest(BaseModel):
+    new_email: EmailStr
+    otp: str = Field(min_length=6, max_length=6, pattern=r"^[0-9]{6}$")
+
+
 class UserResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 

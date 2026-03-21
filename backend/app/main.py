@@ -21,7 +21,10 @@ from app.routes.auth import router as auth_router
 from app.routes.dev import router as dev_router
 from app.routes.health import router as health_router
 from app.routes.chats import router as chats_router
-from app.services.auth_service import cleanup_expired_pending_users
+from app.services.auth_service import (
+    cleanup_expired_pending_email_changes,
+    cleanup_expired_pending_users,
+)
 from app.utils.db import engine
 from app.utils.db import SessionLocal
 
@@ -59,6 +62,11 @@ def on_startup() -> None:
     try:
         deleted_count = cleanup_expired_pending_users(db)
         logger.info("Pending signup cleanup on startup deleted %s record(s).", deleted_count)
+        deleted_email_changes = cleanup_expired_pending_email_changes(db)
+        logger.info(
+            "Pending email-change cleanup on startup deleted %s record(s).",
+            deleted_email_changes,
+        )
     finally:
         db.close()
 
