@@ -27,7 +27,12 @@ def _parse_sql_json(content: str) -> dict[str, Any]:
         )
 
 
-def generate_sql_and_explanation(*, question: str, table_schema: str) -> tuple[str, str]:
+def generate_sql_and_explanation(
+    *,
+    question: str,
+    table_schema: str,
+    conversation_history: list[dict[str, str]] | None = None,
+) -> tuple[str, str]:
     """
     Returns (sql, explanation).
 
@@ -57,13 +62,25 @@ def generate_sql_and_explanation(*, question: str, table_schema: str) -> tuple[s
         '{ "sql": "<SQL using dataset>", "explanation": "<human readable explanation>" }'
     )
 
+    messages: list[dict[str, str]] = [
+        {"role": "system", "content": system_prompt},
+    ]
+
+    # Add recent chat memory (bounded by caller) for follow-up context awareness.
+    if conversation_history:
+        for item in conversation_history:
+            role = (item.get("role") or "").strip().lower()
+            content = (item.get("content") or "").strip()
+            if role not in {"user", "assistant"} or not content:
+                continue
+            messages.append({"role": role, "content": content})
+
+    messages.append({"role": "user", "content": user_prompt})
+
     resp = client.chat.completions.create(
         model=settings.openai_model,
         temperature=0.1,
-        messages=[
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": user_prompt},
-        ],
+        messages=messages,
     )
 
     content = resp.choices[0].message.content or ""

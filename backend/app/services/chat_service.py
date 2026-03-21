@@ -25,6 +25,33 @@ from app.services.duckdb_service import (
 )
 
 logger = logging.getLogger(__name__)
+MEMORY_MESSAGE_LIMIT = 12
+MEMORY_CONTENT_MAX_CHARS = 1200
+
+
+def _recent_chat_memory(db: Session, *, chat_id: str, limit: int = MEMORY_MESSAGE_LIMIT) -> list[dict[str, str]]:
+    """
+    Returns recent chat history in chronological order for context-aware follow-up questions.
+    """
+    stmt = (
+        select(ChatMessage)
+        .where(ChatMessage.chat_id == chat_id)
+        .order_by(ChatMessage.created_at.desc(), ChatMessage.id.desc())
+        .limit(limit)
+    )
+    recent_desc = list(db.scalars(stmt).all())
+    recent = list(reversed(recent_desc))
+
+    memory: list[dict[str, str]] = []
+    for m in recent:
+        if m.role not in {"user", "assistant"}:
+            continue
+        content = (m.content or "").strip()
+        if not content:
+            continue
+        # Keep context bounded to avoid token bloat from long tabular responses.
+        memory.append({"role": m.role, "content": content[:MEMORY_CONTENT_MAX_CHARS]})
+    return memory
 
 
 def _get_chat_permission(db: Session, *, chat: ChatSession, user: User) -> str | None:
@@ -303,6 +330,9 @@ def send_message(
     if not chat.file_url:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Upload a file before chatting.")
 
+    # Collect bounded conversation history before appending the new user turn.
+    memory = _recent_chat_memory(db, chat_id=chat.id, limit=MEMORY_MESSAGE_LIMIT)
+
     # Persist user message.
     user_msg = ChatMessage(chat_id=chat.id, user_id=user.id, role="user", content=message)
     db.add(user_msg)
@@ -316,6 +346,7 @@ def send_message(
         sql, explanation = generate_sql_and_explanation(
             question=message,
             table_schema=schema_text,
+            conversation_history=memory,
         )
 
         columns, rows = execute_sql_safe(

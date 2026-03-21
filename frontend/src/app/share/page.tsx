@@ -54,7 +54,7 @@ function SharePageContent() {
         }
 
         const data = (await resp.json()) as { chat_id: string; permission: string };
-        router.push(`/dashboard?chatId=${encodeURIComponent(data.chat_id)}`);
+        router.push(`/chat/${encodeURIComponent(data.chat_id)}`);
       } catch (err) {
         setError(userFacingError(err, UserMessage.acceptShare));
       } finally {
