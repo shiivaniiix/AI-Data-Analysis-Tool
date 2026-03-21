@@ -4,8 +4,10 @@ import { motion } from "framer-motion";
 import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 
+import { AuthLoadingScreen } from "@/components/auth-loading-screen";
 import { buttonMotion, fadeInUp } from "@/lib/motion-presets";
 import { UserMessage, userFacingError } from "@/lib/user-messages";
+import { getToken } from "@/utils/storage";
 
 function SharePageContent() {
   const router = useRouter();
@@ -23,7 +25,7 @@ function SharePageContent() {
         return;
       }
 
-      const jwt = localStorage.getItem("datachat_token");
+      const jwt = getToken();
       if (!jwt) {
         setLoading(false);
         setError(UserMessage.needLoginForShare);
@@ -68,7 +70,7 @@ function SharePageContent() {
     <main className="flex min-h-screen flex-col items-center justify-center bg-linear-to-br from-zinc-950 via-saas-primary/10 to-zinc-950 px-6 py-20 text-zinc-100">
       <motion.div
         {...fadeInUp}
-        className="w-full max-w-md rounded-2xl border border-white/[0.08] bg-linear-to-br from-zinc-900/92 via-zinc-900/75 to-saas-primary/12 p-8 shadow-2xl shadow-saas-primary/15 backdrop-blur-xl transition-all duration-300 hover:border-white/10"
+        className="w-full max-w-md rounded-2xl border border-white/8 bg-linear-to-br from-zinc-900/92 via-zinc-900/75 to-saas-primary/12 p-8 shadow-2xl shadow-saas-primary/15 backdrop-blur-xl transition-all duration-300 hover:border-white/10"
       >
         <h1 className="bg-linear-to-r from-white via-saas-primary/80 to-saas-accent bg-clip-text text-2xl font-semibold tracking-tight text-transparent">
           Shared chat
@@ -94,13 +96,7 @@ function SharePageContent() {
 
 export default function SharePage() {
   return (
-    <Suspense
-      fallback={
-        <main className="flex min-h-screen flex-col items-center justify-center bg-zinc-950 px-6 py-20 text-zinc-100">
-          <p className="text-sm text-zinc-400">Loading…</p>
-        </main>
-      }
-    >
+    <Suspense fallback={<AuthLoadingScreen message="Loading…" />}>
       <SharePageContent />
     </Suspense>
   );

@@ -230,7 +230,7 @@ export function InsightsCharts({
 
   return (
     <motion.div
-      className="rounded-2xl border border-white/[0.08] bg-linear-to-br from-zinc-900/95 via-zinc-900/72 to-saas-primary/12 p-4 shadow-xl shadow-black/25 backdrop-blur-sm transition-all duration-300 hover:scale-[1.005] hover:border-white/10 hover:shadow-2xl hover:shadow-saas-primary/15"
+      className="rounded-2xl border border-white/8 bg-linear-to-br from-zinc-900/95 via-zinc-900/72 to-saas-primary/12 p-4 shadow-xl shadow-black/25 backdrop-blur-sm transition-all duration-300 hover:scale-[1.005] hover:border-white/10 hover:shadow-2xl hover:shadow-saas-primary/15"
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
@@ -289,7 +289,7 @@ export function InsightsCharts({
       ) : (
         <>
           {filterColumn ? (
-            <div className="mt-4 rounded-2xl border border-white/[0.08] bg-linear-to-br from-zinc-900/92 to-saas-primary/10 p-3 shadow-md shadow-black/20 backdrop-blur-sm">
+            <div className="mt-4 rounded-2xl border border-white/8 bg-linear-to-br from-zinc-900/92 to-saas-primary/10 p-3 shadow-md shadow-black/20 backdrop-blur-sm">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
                   <p className="text-xs font-semibold uppercase tracking-[0.14em] text-zinc-400">
@@ -355,7 +355,7 @@ export function InsightsCharts({
               {barChart ? (
                 <motion.div
                   ref={barRef}
-                  className="w-full rounded-2xl border border-white/[0.08] bg-linear-to-br from-zinc-900/95 to-saas-primary/10 p-4 shadow-lg shadow-black/25 backdrop-blur-sm transition-all duration-300 hover:scale-[1.01] hover:shadow-xl hover:border-saas-accent/25"
+                  className="w-full rounded-2xl border border-white/8 bg-linear-to-br from-zinc-900/95 to-saas-primary/10 p-4 shadow-lg shadow-black/25 backdrop-blur-sm transition-all duration-300 hover:scale-[1.01] hover:shadow-xl hover:border-saas-accent/25"
                   initial={{ opacity: 0, y: 12 }}
                   whileInView={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.38, ease: [0.22, 1, 0.36, 1] }}
@@ -407,7 +407,7 @@ export function InsightsCharts({
               {lineChart ? (
                 <motion.div
                   ref={lineRef}
-                  className="w-full rounded-2xl border border-white/[0.08] bg-linear-to-br from-zinc-900/95 to-saas-primary/10 p-4 shadow-lg shadow-black/25 backdrop-blur-sm transition-all duration-300 hover:scale-[1.01] hover:shadow-xl hover:border-saas-accent/25"
+                  className="w-full rounded-2xl border border-white/8 bg-linear-to-br from-zinc-900/95 to-saas-primary/10 p-4 shadow-lg shadow-black/25 backdrop-blur-sm transition-all duration-300 hover:scale-[1.01] hover:shadow-xl hover:border-saas-accent/25"
                   initial={{ opacity: 0, y: 12 }}
                   whileInView={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.38, ease: [0.22, 1, 0.36, 1] }}
@@ -467,7 +467,7 @@ export function InsightsCharts({
               {pieChart ? (
                 <motion.div
                   ref={pieRef}
-                  className="w-full rounded-2xl border border-white/[0.08] bg-linear-to-br from-zinc-900/95 to-saas-primary/10 p-4 shadow-lg shadow-black/25 backdrop-blur-sm transition-all duration-300 hover:scale-[1.01] hover:shadow-xl hover:border-saas-accent/25"
+                  className="w-full rounded-2xl border border-white/8 bg-linear-to-br from-zinc-900/95 to-saas-primary/10 p-4 shadow-lg shadow-black/25 backdrop-blur-sm transition-all duration-300 hover:scale-[1.01] hover:shadow-xl hover:border-saas-accent/25"
                   initial={{ opacity: 0, y: 12 }}
                   whileInView={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.38, ease: [0.22, 1, 0.36, 1] }}

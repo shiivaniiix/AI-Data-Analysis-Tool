@@ -8,11 +8,11 @@ logger = logging.getLogger(__name__)
 
 
 def send_otp_email(*, email: str, otp_code: str) -> None:
-    resend_api_key = os.getenv("RESEND_API_KEY", "")
+    resend_api_key = (os.getenv("RESEND_API_KEY") or "").strip()
     if not resend_api_key:
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Email service is not configured. Please set RESEND_API_KEY.",
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Email service is not configured. Set RESEND_API_KEY in the server environment.",
         )
 
     resend.api_key = resend_api_key

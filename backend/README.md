@@ -20,11 +20,10 @@ FastAPI backend for DataChat AI (Codezista).
    pip install -r requirements-postgres.txt
    ```
    
-   **OTP email (Gmail SMTP):**
-   - `EMAIL_SENDER`: your Gmail address
-   - `EMAIL_PASSWORD`: Gmail App Password (not your normal login password)
-   - SMTP host/port are configured in code as `smtp.gmail.com:587` (STARTTLS).
-   - If sending fails, backend logs the OTP as a development fallback and does not crash signup.
+   **OTP email (Resend):**
+   - `RESEND_API_KEY`: from [Resend](https://resend.com) (no quotes, no spaces in `.env`).
+   - Files loaded from the **backend** directory (not the shell cwd): `.env` first, then `.env.local` (overrides). Copy `.env.example` to `.env` and set the key.
+   - If `RESEND_API_KEY` is missing, the API stays up; signup OTP routes return **503** with a clear message (not 500).
 
 4. Start server:
    ```bash

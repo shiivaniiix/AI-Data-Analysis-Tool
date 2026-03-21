@@ -4,12 +4,15 @@ import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import { useRouter, useSearchParams } from "next/navigation";
 
+import { AuthLoadingScreen } from "@/components/auth-loading-screen";
 import { DashboardAuthActions } from "@/components/dashboard-auth-actions";
 import { ButtonSpinner } from "@/components/button-spinner";
+import { useAuth } from "@/hooks/useAuth";
 import { apiRequest, apiUpload } from "@/lib/api";
 import { buttonMotion, fadeIn, fadeInUpDelayed, slideInLeft } from "@/lib/motion-presets";
 import { UserMessage, userFacingError } from "@/lib/user-messages";
 import { InsightsCharts } from "@/components/insights-charts";
+import { getNewChatId, removeNewChatId } from "@/utils/storage";
 
 type ChatSession = {
   id: string;
@@ -33,9 +36,7 @@ type ChatMessage = {
 function DashboardPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [token, setToken] = useState<string | null>(null);
-  const [tokenLoaded, setTokenLoaded] = useState(false);
-  const [newChatIdFromLogin, setNewChatIdFromLogin] = useState<string | null>(null);
+  const { token, loading: authLoading, isLoggedIn } = useAuth();
 
   const [chats, setChats] = useState<ChatSession[]>([]);
   const [selectedChatId, setSelectedChatId] = useState<string | null>(null);
@@ -85,20 +86,14 @@ function DashboardPageContent() {
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
-    setToken(localStorage.getItem("datachat_token"));
-    setNewChatIdFromLogin(localStorage.getItem("datachat_new_chat_id"));
-    setTokenLoaded(true);
-  }, []);
-
-  useEffect(() => {
-    if (!tokenLoaded) return;
-    if (!token) {
+    if (authLoading) return;
+    if (!isLoggedIn || !token) {
       router.push("/login");
       return;
     }
     void loadChats();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tokenLoaded, token]);
+  }, [authLoading, isLoggedIn, token, router]);
 
   useEffect(() => {
     if (!selectedChatId || !token) return;
@@ -112,6 +107,7 @@ function DashboardPageContent() {
 
   const loadChats = async () => {
     if (!token) return;
+    const newChatIdFromLogin = getNewChatId();
     setError(null);
     setLoadingChats(true);
     try {
@@ -129,8 +125,7 @@ function DashboardPageContent() {
       setSelectedChatId(preferred);
 
       if (newChatIdFromLogin) {
-        localStorage.removeItem("datachat_new_chat_id");
-        setNewChatIdFromLogin(null);
+        removeNewChatId();
       }
     } catch (err) {
       setError(userFacingError(err, UserMessage.loadChats));
@@ -308,11 +303,19 @@ function DashboardPageContent() {
     }
   };
 
+  if (authLoading) {
+    return <AuthLoadingScreen message="Loading dashboard…" />;
+  }
+
+  if (!token) {
+    return <AuthLoadingScreen message="Redirecting…" />;
+  }
+
   return (
     <main className="flex h-screen bg-linear-to-br from-zinc-950 via-saas-primary/12 to-zinc-950 text-zinc-100">
       <motion.aside
         {...slideInLeft}
-        className="flex w-[280px] flex-col border-r border-white/[0.06] bg-linear-to-b from-zinc-950 via-saas-primary/8 to-zinc-900/98 backdrop-blur-sm"
+        className="flex w-[280px] flex-col border-r border-white/6 bg-linear-to-b from-zinc-950 via-saas-primary/8 to-zinc-900/98 backdrop-blur-sm"
       >
         <div className="p-4">
           <div className="flex items-center justify-between gap-3">
@@ -445,7 +448,7 @@ function DashboardPageContent() {
       </motion.aside>
 
       <motion.section {...fadeInUpDelayed} className="flex flex-1 flex-col">
-        <header className="flex items-center justify-between border-b border-white/[0.06] bg-zinc-950/30 px-6 py-6 backdrop-blur-sm">
+        <header className="flex items-center justify-between border-b border-white/6 bg-zinc-950/30 px-6 py-6 backdrop-blur-sm">
           <div>
             <h1 className="text-lg font-semibold text-white">DataChat AI</h1>
             <p className="text-xs text-zinc-400">
@@ -453,7 +456,7 @@ function DashboardPageContent() {
             </p>
           </div>
           {selectedChat ? (
-            <div className="max-w-[320px] truncate rounded-xl border border-white/[0.08] bg-linear-to-br from-zinc-900/90 to-saas-primary/10 px-3 py-2 text-xs text-zinc-200 shadow-md shadow-black/20 backdrop-blur-sm">
+            <div className="max-w-[320px] truncate rounded-xl border border-white/8 bg-linear-to-br from-zinc-900/90 to-saas-primary/10 px-3 py-2 text-xs text-zinc-200 shadow-md shadow-black/20 backdrop-blur-sm">
               {editingChatId === selectedChat.id ? (
                 <input
                   autoFocus
@@ -577,7 +580,7 @@ function DashboardPageContent() {
         {shareLink && showShareLinkContainer ? (
           <motion.div
             {...fadeIn}
-            className="relative mx-6 mt-3 flex flex-col gap-2 rounded-2xl border border-white/[0.08] bg-linear-to-br from-zinc-900/95 to-saas-primary/12 px-4 py-3 shadow-lg shadow-black/25 backdrop-blur-sm transition-all duration-300 hover:scale-[1.002] hover:shadow-xl hover:shadow-saas-primary/15"
+            className="relative mx-6 mt-3 flex flex-col gap-2 rounded-2xl border border-white/8 bg-linear-to-br from-zinc-900/95 to-saas-primary/12 px-4 py-3 shadow-lg shadow-black/25 backdrop-blur-sm transition-all duration-300 hover:scale-[1.002] hover:shadow-xl hover:shadow-saas-primary/15"
           >
             <button
               type="button"
@@ -624,7 +627,7 @@ function DashboardPageContent() {
           {!selectedChat ? (
             <motion.div
               {...fadeIn}
-              className="flex min-h-[280px] flex-col items-center justify-center rounded-2xl border border-white/[0.08] bg-linear-to-br from-zinc-900/85 to-saas-primary/10 px-8 py-12 text-center shadow-xl shadow-black/20 backdrop-blur-sm"
+              className="flex min-h-[280px] flex-col items-center justify-center rounded-2xl border border-white/8 bg-linear-to-br from-zinc-900/85 to-saas-primary/10 px-8 py-12 text-center shadow-xl shadow-black/20 backdrop-blur-sm"
             >
               {loadingChats ? (
                 <p className="text-sm text-zinc-500">Loading your workspace…</p>
@@ -641,7 +644,7 @@ function DashboardPageContent() {
           ) : !selectedChat.file_url ? (
             <motion.div
               {...fadeIn}
-              className="mx-auto w-full max-w-2xl rounded-2xl border border-white/[0.08] bg-linear-to-br from-zinc-900/95 via-zinc-900/70 to-saas-primary/12 p-8 shadow-xl shadow-black/25 backdrop-blur-sm transition-all duration-300 hover:scale-[1.01] hover:border-white/12 hover:shadow-2xl hover:shadow-saas-primary/15"
+              className="mx-auto w-full max-w-2xl rounded-2xl border border-white/8 bg-linear-to-br from-zinc-900/95 via-zinc-900/70 to-saas-primary/12 p-8 shadow-xl shadow-black/25 backdrop-blur-sm transition-all duration-300 hover:scale-[1.01] hover:border-white/12 hover:shadow-2xl hover:shadow-saas-primary/15"
             >
               <h2 className="text-lg font-semibold text-white">Upload File</h2>
               <p className="mt-2 text-sm text-zinc-400">
@@ -695,7 +698,7 @@ function DashboardPageContent() {
                   datasetVersion={selectedChat.file_url}
                 />
               ) : null}
-              <div className="flex-1 overflow-auto rounded-2xl border border-white/[0.08] bg-linear-to-br from-zinc-900/92 via-zinc-900/65 to-saas-primary/10 px-4 py-4 shadow-inner shadow-black/30 backdrop-blur-sm">
+              <div className="flex-1 overflow-auto rounded-2xl border border-white/8 bg-linear-to-br from-zinc-900/92 via-zinc-900/65 to-saas-primary/10 px-4 py-4 shadow-inner shadow-black/30 backdrop-blur-sm">
                 {loadingMessages ? (
                   <div className="flex min-h-[200px] items-center justify-center py-10">
                     <p className="text-sm text-zinc-500">Loading messages…</p>
@@ -774,13 +777,7 @@ function DashboardPageContent() {
 
 export default function DashboardPage() {
   return (
-    <Suspense
-      fallback={
-        <main className="flex min-h-screen items-center justify-center bg-linear-to-br from-zinc-950 via-saas-primary/10 to-zinc-950 px-6 py-10 text-zinc-200">
-          <p className="text-sm text-saas-accent/80">Loading dashboard…</p>
-        </main>
-      }
-    >
+    <Suspense fallback={<AuthLoadingScreen message="Loading dashboard…" />}>
       <DashboardPageContent />
     </Suspense>
   );

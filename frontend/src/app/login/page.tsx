@@ -5,10 +5,13 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
+import { LoginLoadingCard } from "@/components/login-loading-card";
 import { ButtonSpinner } from "@/components/button-spinner";
+import { useAuth } from "@/hooks/useAuth";
 import { apiRequest } from "@/lib/api";
 import { UserMessage, userFacingError } from "@/lib/user-messages";
 import { buttonMotion, fadeInUp } from "@/lib/motion-presets";
+import { setSessionFromLogin } from "@/utils/storage";
 
 type LoginResponse = {
   access_token: string;
@@ -21,18 +24,16 @@ type LoginResponse = {
 
 export default function LoginPage() {
   const router = useRouter();
-  const [isAuthed] = useState(() => {
-    if (typeof window === "undefined") return false;
-    return !!localStorage.getItem("datachat_token");
-  });
+  const { isLoggedIn, loading: authLoading } = useAuth();
   const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (isAuthed) router.replace("/dashboard");
-  }, [isAuthed, router]);
+    if (authLoading) return;
+    if (isLoggedIn) router.replace("/dashboard");
+  }, [authLoading, isLoggedIn, router]);
 
   const handleLogin = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -44,10 +45,12 @@ export default function LoginPage() {
         method: "POST",
         body: { identifier, password },
       });
-      localStorage.setItem("datachat_token", data.access_token);
-      localStorage.setItem("datachat_user_email", data.email);
-      localStorage.setItem("datachat_username", data.username);
-      localStorage.setItem("datachat_new_chat_id", data.new_chat_id);
+      setSessionFromLogin({
+        access_token: data.access_token,
+        email: data.email,
+        username: data.username,
+        new_chat_id: data.new_chat_id,
+      });
       router.push("/dashboard");
     } catch (err) {
       setError(userFacingError(err, UserMessage.login));
@@ -56,11 +59,15 @@ export default function LoginPage() {
     }
   };
 
+  if (authLoading) {
+    return <LoginLoadingCard />;
+  }
+
   return (
     <main className="flex min-h-screen items-center justify-center bg-linear-to-br from-zinc-950 via-saas-primary/10 to-zinc-950 px-6 py-20">
       <motion.div
         {...fadeInUp}
-        className="w-full max-w-md rounded-2xl border border-white/[0.08] bg-linear-to-br from-zinc-900/92 via-zinc-900/75 to-saas-primary/12 p-8 shadow-2xl shadow-saas-primary/15 backdrop-blur-xl transition-all duration-300 hover:border-white/10 hover:shadow-saas-primary/20"
+        className="w-full max-w-md rounded-2xl border border-white/8 bg-linear-to-br from-zinc-900/92 via-zinc-900/75 to-saas-primary/12 p-8 shadow-2xl shadow-saas-primary/15 backdrop-blur-xl transition-all duration-300 hover:border-white/10 hover:shadow-saas-primary/20"
       >
         <h1 className="bg-linear-to-r from-white via-saas-primary/80 to-saas-accent bg-clip-text text-2xl font-semibold tracking-tight text-transparent">
           Welcome back

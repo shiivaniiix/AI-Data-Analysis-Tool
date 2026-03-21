@@ -1,4 +1,5 @@
-@import "tailwindcss";
+/* Scan `src/**` for class names (Tailwind v4 — see https://tailwindcss.com/docs/detecting-classes-in-source-files) */
+@import "tailwindcss" source("../../src");
 
 /* Premium SaaS palette — Stripe/Notion-inspired dark UI */
 :root {

@@ -2,32 +2,31 @@
 
 import { motion } from "framer-motion";
 import { useRouter } from "next/navigation";
-import { useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 
 import { apiRequest } from "@/lib/api";
 import { UserMessage, userFacingError } from "@/lib/user-messages";
 import { buttonMotion, fadeInUp } from "@/lib/motion-presets";
+import { clearSession, getToken, getUsername } from "@/utils/storage";
 
 export function DashboardAuthActions() {
   const router = useRouter();
   const [password, setPassword] = useState("");
   const [loadingDelete, setLoadingDelete] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [username, setUsername] = useState<string | null>(null);
 
-  const username = useMemo(
-    () => (typeof window !== "undefined" ? localStorage.getItem("datachat_username") : null),
-    [],
-  );
+  useEffect(() => {
+    setUsername(getUsername());
+  }, []);
 
   const logout = () => {
-    localStorage.removeItem("datachat_token");
-    localStorage.removeItem("datachat_user_email");
-    localStorage.removeItem("datachat_username");
+    clearSession();
     router.push("/login");
   };
 
   const handleDeleteAccount = async () => {
-    const token = localStorage.getItem("datachat_token");
+    const token = getToken();
     if (!token) {
       setError(UserMessage.notLoggedIn);
       return;
@@ -55,7 +54,7 @@ export function DashboardAuthActions() {
   return (
     <motion.div
       {...fadeInUp}
-      className="rounded-2xl border border-white/[0.08] bg-linear-to-br from-zinc-900/92 via-zinc-900/72 to-saas-primary/10 p-5 shadow-xl shadow-black/25 backdrop-blur-sm transition-all duration-300 hover:border-white/10 hover:shadow-saas-primary/10"
+      className="rounded-2xl border border-white/8 bg-linear-to-br from-zinc-900/92 via-zinc-900/72 to-saas-primary/10 p-5 shadow-xl shadow-black/25 backdrop-blur-sm transition-all duration-300 hover:border-white/10 hover:shadow-saas-primary/10"
     >
       <h2 className="text-sm font-semibold uppercase tracking-[0.14em] text-zinc-400">Account</h2>
       <p className="mt-3 text-sm text-zinc-300">

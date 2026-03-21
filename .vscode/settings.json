@@ -1,0 +1,6 @@
+{
+  "tailwindCSS.experimental.classRegex": [
+    ["className\\s*=\\s*\"([^\"]*)\"", "[^\\s]+"]
+  ],
+  "tailwindCSS.experimental.configFile": "frontend/tailwind.config.ts"
+}
